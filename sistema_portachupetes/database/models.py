@@ -15,7 +15,7 @@ class Materiales(Base):
     color:Mapped[str] = mapped_column(String, nullable=False)
     categoria:Mapped[str] = mapped_column(String, nullable=False)
     subcategoria:Mapped[str] = mapped_column(String, nullable=False)
-    fecha_ingreso:Mapped[DateTime] = mapped_column(DateTime, default=datetime.utcnow)
+    fecha_ingreso:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
     comentarios:Mapped[Optional[str]] = mapped_column(String, nullable=True)
     stock:Mapped['Stock'] = relationship(back_populates='material', uselist=False)
 
@@ -26,9 +26,9 @@ class Stock(Base):
     __tablename__ = 'stock'
 
     id_stock:Mapped[int] = mapped_column(Integer, autoincrement=True, primary_key=True)
-    codigo_material:Mapped[str] = mapped_column(ForeignKey('materiales.codigo_material'), nullable=False)
+    codigo_material:Mapped[str] = mapped_column(ForeignKey('materiales.codigo_material'), nullable=False, unique=True)
     cantidad:Mapped[int] = mapped_column(Integer, nullable=False)
-    fecha_modificacion:Mapped[DateTime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    fecha_modificacion:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today, nullable=False)
     material:Mapped['Materiales'] = relationship(back_populates='stock')
 
     def __repr__(self):
