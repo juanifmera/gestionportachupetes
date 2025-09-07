@@ -18,7 +18,7 @@ def agregar_material(id_material:int, codigo_material:str, descripcion:str, colo
 
         session.add(nuevo_material)
         session.commit()
-        print(f'Nuevo material {nuevo_material.categoria} con codigo {nuevo_material.codigo_material} generado con exito el dia {fecha_ingreso.date()}')
+        print(f'Nuevo material {nuevo_material.categoria} con codigo {nuevo_material.codigo_material.upper()} generado con exito el dia {fecha_ingreso.date()}')
 
     except Exception as e:
         print(f'Ocurrio un error a la hora de generar un nuevo Material. Archivo --> CRUD - Material - Funcion "agregar_material". DETALLE: {e}')
@@ -100,7 +100,7 @@ def listo_con_filtro(nombre_columna:str, valor):
     except Exception as e:
         print(f'Ocurrio un error a la hora de Listar los Materiales utilizando una condicion. Archivo --> CRUD - Material - Funcion "listo_con_filtro". DETALLE: {e}')
 
-def buscar_por_codigo(codigo_material:str):
+def validar_material(codigo_material:str):
 
     '''
     Funcion para validar la existencia de un Material
