@@ -9,7 +9,7 @@ from crud.materiales import buscar_por_codigo
 def validar_stock(codigo_material:str):
 
     '''
-    Verifico que no haya ninguna linea de Stock existente con un codigo de Material
+    Verifico que no haya ninguna linea de Stock YA EXISTENTE con un codigo de Material repetido
     '''
 
     session = Session(bind=engine)
@@ -20,7 +20,8 @@ def validar_stock(codigo_material:str):
         return True
     else:
         return False
-    
+
+#Incrementar Stock
 def incrementar_stock(codigo_material:str, cantidad:int):
     
     '''
@@ -45,7 +46,7 @@ def incrementar_stock(codigo_material:str, cantidad:int):
 def agregar_stock(codigo_material:str, cantidad:int, fecha_modificacion=datetime.now()):
     
     '''
-    Funcion para Agregar Stock a la Tabla. la funcion valida que haya un Material cargado Previamente en la tabla Materiales
+    Funcion para Agregar Stock a la Tabla. La funcion valida que haya un Material cargado Previamente en la tabla Materiales. Esta funcion tiene dos alternativas posibles, o se generea el stock de un material desde cero, o se le incrementa la cantidad de stock a algun material ya cargado previamente.
     '''
 
     try:
@@ -92,3 +93,7 @@ def eliminar_stock(codigo_material:str):
 
     except Exception as e:
         print(f'Ocurrio un error a la hora de Eliminar todo el Stock para el Codigo de Material: {codigo_material}. Archivo --> CRUD - Stock - Funcion "eliminar_stock". DETALLE: {e}')
+
+#Actualizar
+def actualizar_stock(codigo_material):
+    pass
