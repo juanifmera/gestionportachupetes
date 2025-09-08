@@ -1,0 +1,15 @@
+{
+    "pedido":1,
+    "cliente":"Juan",
+    "fecha":"07/09/2025",
+    "estado":"En proceso",
+    "materiales":{
+        "broche":"PAZU",
+        "dije":118,
+        "bolitas":"BBLA",
+        "lentejas":"LNEG",
+        "letras":[
+            "j","u","a","n","i"
+        ]
+    }
+}

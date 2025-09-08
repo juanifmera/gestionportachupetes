@@ -72,6 +72,8 @@ def listo_todo():
     try:
         session = Session(bind=engine)
         materiales = session.query(Materiales).all()
+        
+        #TENGO QUE MODIFICAR ESTO PARA QUE ME DEVUELVA UN DF E IMPRIMILO
         for material in materiales:
             print(material.codigo_material)
         
@@ -100,6 +102,7 @@ def listo_con_filtro(nombre_columna:str, valor):
     except Exception as e:
         print(f'Ocurrio un error a la hora de Listar los Materiales utilizando una condicion. Archivo --> CRUD - Material - Funcion "listo_con_filtro". DETALLE: {e}')
 
+#Validar Material
 def validar_material(codigo_material:str):
 
     '''
