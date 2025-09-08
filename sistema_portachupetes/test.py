@@ -10,7 +10,9 @@ from logic.verificador import verificar_confeccion
 try:
     session = Session(bind=engine)
 
-    verificar_confeccion('pbla-felipe-118-bazu-lamar')
+    #reducir_stock('P', 1)
+
+    verificar_confeccion('pazu-felipe-118-bbla-lbla')
 
 except Exception as e:
     print(f'Ocurrio un error al intentar generar los dummy entries. ERROR: {e}')
