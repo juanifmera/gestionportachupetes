@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from database.engine import engine
-from database.models import Materiales, Stock
+from database.models import Material, Stock
 from crud.materiales import validar_material
 
 #Validar Lineas de Stock
@@ -160,7 +160,7 @@ def listar_stock():
 
     try:
         session = Session(bind=engine)
-        stmt = select(Stock).join(Materiales, Stock.codigo_material == Materiales.codigo_material)
+        stmt = select(Stock).join(Material, Stock.codigo_material == Material.codigo_material)
 
         results = session.scalars(stmt).all()
 

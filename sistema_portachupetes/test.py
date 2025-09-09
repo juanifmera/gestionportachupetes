@@ -1,4 +1,4 @@
-from database.models import Materiales, Stock, Base
+from database.models import Material, Stock, Base
 from database.engine import engine
 from sqlalchemy.orm import Session, query
 from sqlalchemy import select
@@ -9,8 +9,6 @@ from logic.verificador import verificar_confeccion
 
 try:
     session = Session(bind=engine)
-
-    #reducir_stock('P', 1)
 
     verificar_confeccion('pazu-felipe-118-bbla-lbla')
 

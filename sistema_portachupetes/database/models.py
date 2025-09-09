@@ -6,7 +6,7 @@ from datetime import datetime
 class Base(DeclarativeBase):
     pass
 
-class Materiales(Base):
+class Material(Base):
     __tablename__ = 'materiales'
 
     id_material: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -29,7 +29,20 @@ class Stock(Base):
     codigo_material:Mapped[str] = mapped_column(ForeignKey('materiales.codigo_material'), nullable=False, unique=True)
     cantidad:Mapped[int] = mapped_column(Integer, nullable=False)
     fecha_modificacion:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today, nullable=False)
-    material:Mapped['Materiales'] = relationship(back_populates='stock')
+    material:Mapped['Material'] = relationship(back_populates='stock')
 
     def __repr__(self):
         return f'Stock Generado: {self.codigo_material}, Cantidad Actual{self.cantidad}, Fecha de Modificacion: {self.fecha_modificacion}'
+    
+class Pedido(Base):
+    __tablename__ = 'pedidos'
+
+    id:Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    codigo_portachupetes:Mapped[str] = mapped_column(String, nullable=False)
+    cliente:Mapped[str] = mapped_column(String)
+    telefono:Mapped[str] = mapped_column(String, nullable=True, default='')
+    fecha_pedido:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
+    estado:Mapped[str] = mapped_column(String, nullable=False, default='En Proceso')
+
+    def __repr__(self):
+        return f'Pedido Generado: {self.codigo_portachupetes} el dia {self.fecha_pedido} para el/la cliente {self.cliente}'

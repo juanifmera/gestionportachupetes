@@ -1,4 +1,4 @@
-from database.models import Stock, Materiales, Base
+from database.models import Base
 from database.engine import engine
 
 try:

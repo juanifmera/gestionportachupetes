@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from database.models import Materiales
+from database.models import Material
 from database.engine import engine
 from datetime import datetime
 
@@ -14,7 +14,7 @@ def agregar_material(id_material:int, codigo_material:str, descripcion:str, colo
     try:
         session = Session(bind=engine)
 
-        nuevo_material = Materiales(id_material=id_material, codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria.capitalize(), subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize())
+        nuevo_material = Material(id_material=id_material, codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria.capitalize(), subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize())
 
         session.add(nuevo_material)
         session.commit()
@@ -33,7 +33,7 @@ def actualizar_material(codigo_material:str, nombre_columna:str, nuevo_valor):
     try:
         session = Session(bind=engine)
 
-        session.query(Materiales).where(Materiales.codigo_material == codigo_material.upper()).update({nombre_columna.lower():nuevo_valor}) #Tener cuidado con el nuevo valor y su capitalizacion, ya que si se cambia el codigo, debera ser upper(), si es su fecha de ingreso seria datetime, su id es int y por ulñtimos sus otros campos capitalize()
+        session.query(Material).where(Material.codigo_material == codigo_material.upper()).update({nombre_columna.lower():nuevo_valor}) #Tener cuidado con el nuevo valor y su capitalizacion, ya que si se cambia el codigo, debera ser upper(), si es su fecha de ingreso seria datetime, su id es int y por ulñtimos sus otros campos capitalize()
         session.commit()
         print(f'Material codigo: {codigo_material.upper()} sufrio una actualizacion de su campo: {nombre_columna.lower()}. El nuevo valor es {nuevo_valor}')
 
@@ -50,7 +50,7 @@ def eliminar_material(codigo_material:str):
     try:
         session = Session(bind=engine)
 
-        result = session.query(Materiales).where(Materiales.codigo_material == codigo_material.upper()).delete()
+        result = session.query(Material).where(Material.codigo_material == codigo_material.upper()).delete()
 
         if result:
             session.commit()
@@ -71,7 +71,7 @@ def listo_todo():
     
     try:
         session = Session(bind=engine)
-        materiales = session.query(Materiales).all()
+        materiales = session.query(Material).all()
         
         #TENGO QUE MODIFICAR ESTO PARA QUE ME DEVUELVA UN DF E IMPRIMILO
         for material in materiales:
@@ -89,8 +89,8 @@ def listo_con_filtro(nombre_columna:str, valor):
     
     try:
         session = Session(bind=engine)
-        columna = getattr(Materiales, nombre_columna)
-        result = session.query(Materiales).filter(columna == valor).all()
+        columna = getattr(Material, nombre_columna)
+        result = session.query(Material).filter(columna == valor).all()
 
         if result:
             for item in result:
@@ -111,7 +111,7 @@ def validar_material(codigo_material:str):
 
     try:
         session = Session(bind=engine)
-        result = session.query(Materiales).where(Materiales.codigo_material == codigo_material.upper()).all()
+        result = session.query(Material).where(Material.codigo_material == codigo_material.upper()).all()
         if result:
             return True
         else:
