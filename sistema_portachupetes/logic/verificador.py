@@ -55,7 +55,7 @@ def verificar_confeccion(codigo_portachupetes:str):
 
                 result = session.query(Stock).where(Stock.codigo_material == codigo_material).first()
                 
-                if result != None: #Si el codigo material en la tabla Stcok
+                if result != None: #Si el codigo material esta en la tabla Stcok
 
                     if result.cantidad >= cantidad_requerida:
                         exitos.append(f'Cantidad Suficiente del {key}: {result.codigo_material}. Cantidad Actual {result.cantidad}, Cantidad Requerida {cantidad_requerida}')
@@ -72,7 +72,7 @@ def verificar_confeccion(codigo_portachupetes:str):
                 
                 result = session.query(Stock).where(Stock.codigo_material == letra).first()
                 
-                if result != None: #Si el codigo material en la tabla Stcok
+                if result != None: #Si el codigo material esta en la tabla Stcok
 
                     if result.cantidad >= cantidad_requerida:
                         exitos.append(f'Cantidad Suficiente de la Letra {letra}. Cantidad Actual {result.cantidad}, Cantidad Requerida {cantidad_requerida}')

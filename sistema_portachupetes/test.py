@@ -13,4 +13,4 @@ try:
     verificar_confeccion('pazu-felipe-118-bbla-lbla')
 
 except Exception as e:
-    print(f'Ocurrio un error al intentar generar los dummy entries. ERROR: {e}')
+    print('Ocurrio un error al intentar generar los dummy entries. ERROR: {e}')
