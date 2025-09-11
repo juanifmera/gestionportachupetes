@@ -21,6 +21,7 @@ def verificar_confeccion(codigo_portachupetes:str):
             dije = codigo_portachupetes.upper().split('-')[2]
             bolitas = codigo_portachupetes.upper().split('-')[3]
             lentejas = codigo_portachupetes.upper().split('-')[4]
+            dije_especial = codigo_portachupetes.upper().split('-')[5]
 
             recuento_letras = {}
             letras_final = []
@@ -43,6 +44,7 @@ def verificar_confeccion(codigo_portachupetes:str):
                 'bolitas':(bolitas,2),
                 'lentejas':(lentejas,2),
                 'letras':letras_final,
+                'dije_especial':dije_especial
             }
 
             for key, value in pedido.items():

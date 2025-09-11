@@ -136,14 +136,14 @@ def reducir_stock(codigo_material:str, cantidad:int):
             
             item = session.query(Stock).where(Stock.codigo_material == codigo_material.upper()).first()
 
-            if item.cantidad >= cantidad:
-                item.cantidad -= cantidad
+            if item.cantidad >= cantidad: # type: ignore
+                item.cantidad -= cantidad # type: ignore
                 item.fecha_modificacion = datetime.now() # type: ignore
                 session.commit()
-                print(f'Stock actualizado. Nuevo stock para {codigo_material.upper()}: {item.cantidad}')
+                print(f'Stock actualizado. Nuevo stock para {codigo_material.upper()}: {item.cantidad}') # type: ignore
 
             else:
-                print(f'No se puede reducir el Stock del Material {codigo_material.upper()} ya que no hay unidades suficientes. Stock Actual {item.cantidad}')
+                print(f'No se puede reducir el Stock del Material {codigo_material.upper()} ya que no hay unidades suficientes. Stock Actual {item.cantidad}') # type: ignore
 
         else:
             print(f'No se encontraron resultados en el Stock para el Material: Codigo de Material {codigo_material.upper()}')
