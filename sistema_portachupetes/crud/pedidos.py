@@ -59,6 +59,7 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
 
     
 def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
+
     """
     Genera un nuevo pedido y descuenta materiales del stock si hay suficiente.
     """
@@ -74,7 +75,7 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
         # Crear el pedido
         nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado)
         session.add(nuevo_pedido)
-        session.flush()  # ← Esto permite obtener el ID del pedido antes del commit
+        session.flush()  # Permite obtener el ID del pedido antes del commit
 
         # Obtener materiales y asociarlos
         materiales_usados = obtener_materiales_utilizados(materiales_portachupete)
