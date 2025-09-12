@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database.models import Stock, Material, Pedido, MaterialPedido
 from datetime import datetime
 from database.engine import engine
-
+from crud.stock import incrementar_stock
 #Continuar con la Creacion de las siguientes Funciones para los pedidos
 
 def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
@@ -96,13 +96,38 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
     except Exception as e:
         return f"Ocurrió un error al generar un nuevo pedido para el cliente {cliente.capitalize()}. DETALLE: {e}"
     
+def cancelar_pedido(id:int):
+    '''
+    Funcion para cancelar un pedido por su ID y devolver los materiales al Stock
+    '''
 
-def delete_all():
+    try:
+        session = Session(bind=engine)
 
-    session = Session(bind=engine)
-    results = session.query(Pedido).all()
+        pedido = session.query(Pedido).get(Pedido, id)
 
-    for result in results:
-        session.delete(result)
-        session.commit()
-        session.close()
+        mensajes = []
+
+        if pedido:
+
+            if pedido.estado == 'Cancelado' or pedido.estado == 'Terminado':
+                return f'No se puede cancelar un pedido ya Cancelado o Terminado. ID del Pedido {id}, Estado: {pedido.estado}'
+            
+            pedido.estado = 'Cancelado'
+
+            materiales_consumidos = session.query(MaterialPedido).where(MaterialPedido.pedido_id == pedido.id).all()
+
+            for material in materiales_consumidos:
+                incrementar_stock(material.codigo_material.upper(), material.cantidad_usada)
+                mensajes.append(f'El material {material.codigo_material.upper()} se incremento {material.cantidad_usada} unidades nuvamente al Stock')
+                session.delete(material)
+            
+            session.commit()
+
+            return f'{id} Pedido Cancelado con Exito. Detalle de Materiales Devueltos al Stock:\n{mensajes}'
+        
+        else:
+            return f'No se encontro Ningun Pedido con el ID {id}. Porfavor volver a intentarlo'
+
+    except Exception as e:
+        return f'Ocurrio un problema a la hora de Cancelar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
