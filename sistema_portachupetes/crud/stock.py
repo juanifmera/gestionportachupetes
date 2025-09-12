@@ -61,9 +61,9 @@ def agregar_stock(codigo_material:str, cantidad:int, fecha_modificacion=datetime
 
             session.add(nueva_entrada)
             session.commit()
-
             print(f'Nuevo ingreso de Stock. Codigo Material: {codigo_material.upper()} / Cantidad: {cantidad}')
-        
+            session.close()
+
         #Caso donde el codigo_material exista en la tabla Materiales, pero ya haya una entrada de Stock
         elif validar_material(codigo_material) == True and validar_stock(codigo_material) == True: 
             incrementar_stock(codigo_material, cantidad)

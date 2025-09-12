@@ -25,11 +25,7 @@ try:
         ]
     }
 
-    #print(verificar_confeccion_portachupetes(data))
-
-    #sdelete_all()
-    print(crear_pedido('Juan mera', data, telefono='1126640509'))
+    print(crear_pedido('Lucia Mera', data))
  
-
 except Exception as e:
     print(f'Ocurrio un error al intentar generar los dummy entries. ERROR: {e}')
