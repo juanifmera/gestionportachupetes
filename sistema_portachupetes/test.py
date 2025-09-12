@@ -6,7 +6,7 @@ from datetime import datetime
 from crud.materiales import agregar_material, actualizar_material, eliminar_material, listo_todo, listo_con_filtro, validar_material
 from crud.stock import agregar_stock, eliminar_stock, actualizar_stock, reducir_stock, listar_stock
 from logic.verificador import verificar_confeccion_portachupetes
-from crud.pedidos import crear_pedido, obtener_materiales_utilizados, delete_all
+from crud.pedidos import crear_pedido, obtener_materiales_utilizados, cancelar_pedido
 
 try:
     session = Session(bind=engine)
@@ -25,7 +25,7 @@ try:
         ]
     }
 
-    print(crear_pedido('Lucia Mera', data))
+    print(cancelar_pedido(3))
  
 except Exception as e:
     print(f'Ocurrio un error al intentar generar los dummy entries. ERROR: {e}')
