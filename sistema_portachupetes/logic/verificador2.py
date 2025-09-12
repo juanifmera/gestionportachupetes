@@ -80,4 +80,4 @@ def verificar_confeccion_portachupetes(data: dict) -> dict: # type: ignore
         }
     
     except Exception as e:
-        print(f'Ocurrio algun problema a la hora de validar la confeccion del pedido del portachupetes. Carpeta Logic - Archivo verificador - Funcion "verificar_confeccion". ERROR: {e}')
+        print(f'Ocurrio algun problema a la hora de validar la confeccion del pedido del portachupetes. Carpeta Logic - Archivo verificador2 - Funcion "verificar_confeccion". ERROR: {e}')
