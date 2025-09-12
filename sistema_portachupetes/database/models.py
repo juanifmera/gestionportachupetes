@@ -9,7 +9,6 @@ class Base(DeclarativeBase):
 class Material(Base):
     __tablename__ = 'materiales'
 
-    id_material: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     codigo_material:Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
     descripcion:Mapped[str] = mapped_column(String(50), nullable=False)
     color:Mapped[str] = mapped_column(String, nullable=False)
@@ -38,11 +37,22 @@ class Pedido(Base):
     __tablename__ = 'pedidos'
 
     id:Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    codigo_portachupetes:Mapped[str] = mapped_column(String, nullable=False)
     cliente:Mapped[str] = mapped_column(String)
     telefono:Mapped[str] = mapped_column(String, nullable=True, default='')
     fecha_pedido:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
     estado:Mapped[str] = mapped_column(String, nullable=False, default='En Proceso')
 
+    materiales = relationship('MaterialPedido', back_populates='pedido', cascade='all, delete-orphan')
+
     def __repr__(self):
-        return f'Pedido Generado: {self.codigo_portachupetes} el dia {self.fecha_pedido} para el/la cliente {self.cliente}'
+        return f'Pedido Generado ID: {self.id} al dia {self.fecha_pedido} para el/la cliente {self.cliente}'
+
+class MaterialPedido(Base):
+    __tablename__ = 'materiales_pedidos'
+
+    id:Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pedido_id:Mapped[int] = mapped_column(ForeignKey('pedidos.id'))
+    codigo_material:Mapped[str] = mapped_column(ForeignKey('materiales.codigo_material'), nullable=False)
+    cantidad_usada:Mapped[int] = mapped_column(Integer, nullable=False)
+
+    pedido = relationship('Pedido', back_populates='materiales')

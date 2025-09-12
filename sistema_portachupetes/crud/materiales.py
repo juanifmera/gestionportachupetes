@@ -5,7 +5,7 @@ from database.engine import engine
 from datetime import datetime
 
 #Agrego Material
-def agregar_material(id_material:int, codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, comentarios:str, fecha_ingreso=datetime.now()):
+def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, comentarios:str, fecha_ingreso=datetime.now()):
 
     '''
     Funcion para agregar un nuevo Material a la Tabla Materiales
@@ -14,7 +14,7 @@ def agregar_material(id_material:int, codigo_material:str, descripcion:str, colo
     try:
         session = Session(bind=engine)
 
-        nuevo_material = Material(id_material=id_material, codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria.capitalize(), subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize())
+        nuevo_material = Material(codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria.capitalize(), subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize())
 
         session.add(nuevo_material)
         session.commit()
