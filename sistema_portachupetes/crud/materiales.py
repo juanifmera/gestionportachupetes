@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+import pandas as pd
 from database.models import Material
 from database.engine import engine
 from datetime import datetime
@@ -18,27 +18,33 @@ def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:
 
         session.add(nuevo_material)
         session.commit()
-        print(f'Nuevo material {nuevo_material.categoria} con codigo {nuevo_material.codigo_material.upper()} generado con exito el dia {fecha_ingreso.date()}')
+        return f'✅ Nuevo material "{nuevo_material.descripcion}" con código {nuevo_material.codigo_material} agregado con éxito el {fecha_ingreso.date()}'
 
     except Exception as e:
-        print(f'Ocurrio un error a la hora de generar un nuevo Material. Archivo --> CRUD - Material - Funcion "agregar_material". DETALLE: {e}')
+        print(f'❌ Ocurrio un error a la hora de generar un nuevo Material. Archivo --> CRUD - Material - Funcion "agregar_material". DETALLE: {e}')
 
 #Actualizar Material
-def actualizar_material(codigo_material:str, nombre_columna:str, nuevo_valor):
-
-    '''
-    Funcion para modificar un  Material de la Tabla Materiales utilizando su codigo_material
-    '''
-    
+def actualizar_material(codigo_material: str, columna: str, nuevo_valor):
+    """
+    Función para modificar un Material de la tabla Materiales utilizando su codigo_material
+    """
     try:
         session = Session(bind=engine)
 
-        session.query(Material).where(Material.codigo_material == codigo_material.upper()).update({nombre_columna.lower():nuevo_valor}) #Tener cuidado con el nuevo valor y su capitalizacion, ya que si se cambia el codigo, debera ser upper(), si es su fecha de ingreso seria datetime, su id es int y por ulñtimos sus otros campos capitalize()
+        if not hasattr(Material, columna):
+            return f'❌ La columna "{columna}" no existe en la tabla Materiales.'
+
+        columna_attr = getattr(Material, columna)
+        result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).update({columna_attr: nuevo_valor})
         session.commit()
-        print(f'Material codigo: {codigo_material.upper()} sufrio una actualizacion de su campo: {nombre_columna.lower()}. El nuevo valor es {nuevo_valor}')
+
+        if result:
+            return f'✅ Material {codigo_material.upper()} actualizado correctamente. Campo "{columna}" = "{nuevo_valor}"'
+        else:
+            return f'⚠️ No se encontró material con código {codigo_material.upper()}'
 
     except Exception as e:
-        print(f'Ocurrio un error a la hora de actualizar un Material. Archivo --> CRUD - Material - Funcion "actualizar_material". DETALLE: {e}')
+        print(f'❌ Ocurrio un error a la hora de actualizar un Material. Archivo --> CRUD - Material - Funcion "actualizar_material". DETALLE: {e}')
 
 #Elimino Material
 def eliminar_material(codigo_material:str):
@@ -49,21 +55,19 @@ def eliminar_material(codigo_material:str):
     
     try:
         session = Session(bind=engine)
-
-        result = session.query(Material).where(Material.codigo_material == codigo_material.upper()).delete()
+        result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).delete()
 
         if result:
             session.commit()
-            print(f'Material codigo: {codigo_material.upper()} fue eliminado de la Tabla Materiales de forma Exitosa')
-        
+            return f'✅ Material {codigo_material.upper()} eliminado correctamente'
         else:
-            print(f'No se encontro ningun material con el codigo: {codigo_material.upper()}. Porfavor volve a intentarlo')
+            return f'⚠️ No se encontró material con código {codigo_material.upper()}'
         
     except Exception as e:
-        print(f'Ocurrio un error a la hora de eliminar un Material. Archivo --> CRUD - Material - Funcion "eliminar_material". DETALLE: {e}')
+        print(f'❌ Ocurrio un error a la hora de eliminar un Material. Archivo --> CRUD - Material - Funcion "eliminar_material". DETALLE: {e}')
 
 #Listo Todos los Materiales
-def listo_todo():
+def listar_todos_materiales():
 
     '''
     Funcion para Listar todos los materiales de la Tabla Materiales
@@ -72,16 +76,28 @@ def listo_todo():
     try:
         session = Session(bind=engine)
         materiales = session.query(Material).all()
-        
-        #TENGO QUE MODIFICAR ESTO PARA QUE ME DEVUELVA UN DF E IMPRIMILO
-        for material in materiales:
-            print(material.codigo_material)
+
+        data = [
+            {
+                "Código": m.codigo_material,
+                "Descripción": m.descripcion,
+                "Color": m.color,
+                "Categoría": m.categoria,
+                "Subcategoría": m.subcategoria,
+                "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
+                "Comentarios": m.comentarios
+            }
+            for m in materiales
+        ]
+
+        return pd.DataFrame(data)
+
         
     except Exception as e:
-        print(f'Ocurrio un error a la hora de Listar los Materiales. Archivo --> CRUD - Material - Funcion "listo_todo". DETALLE: {e}')
+        print(f'❌ Ocurrio un error a la hora de Listar los Materiales. Archivo --> CRUD - Material - Funcion "listo_todo". DETALLE: {e}')
 
 #Filtro por Condicion
-def listo_con_filtro(nombre_columna:str, valor):
+def listo_con_filtro(columna:str, valor):
 
     '''
     Funcion para Listar todos los materiales de la Tabla Materiales en funcion a una condicion
@@ -89,33 +105,69 @@ def listo_con_filtro(nombre_columna:str, valor):
     
     try:
         session = Session(bind=engine)
-        columna = getattr(Material, nombre_columna)
-        result = session.query(Material).filter(columna == valor).all()
 
-        if result:
-            for item in result:
-                print(item.codigo_material, item.color, item.categoria)
+        if not hasattr(Material, columna):
+            return pd.DataFrame([{"Error": f'❌ La columna "{columna}" no existe en Material'}])
 
-        else:
-            print(f'No se encontraron resultados para la busqueda seleccionada')
+        columna_attr = getattr(Material, columna)
+        result = session.query(Material).filter(columna_attr == valor).all()
+
+        if not result:
+            return pd.DataFrame([{"Mensaje": f'⚠️ No se encontraron materiales con {columna} = {valor}'}])
+
+        data = [
+            {
+                "Código": m.codigo_material,
+                "Descripción": m.descripcion,
+                "Color": m.color,
+                "Categoría": m.categoria,
+                "Subcategoría": m.subcategoria,
+                "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
+                "Comentarios": m.comentarios
+            }
+            for m in result
+        ]
+
+        return pd.DataFrame(data)
         
     except Exception as e:
-        print(f'Ocurrio un error a la hora de Listar los Materiales utilizando una condicion. Archivo --> CRUD - Material - Funcion "listo_con_filtro". DETALLE: {e}')
+        print(f'❌ Ocurrio un error a la hora de Listar los Materiales utilizando una condicion. Archivo --> CRUD - Material - Funcion "listo_con_filtro". DETALLE: {e}')
 
 #Validar Material
-def validar_material(codigo_material:str):
-
-    '''
-    Funcion para validar la existencia de un Material
-    '''
-
+def validar_material(codigo_material: str) -> bool:
+    """
+    Función para validar la existencia de un Material
+    """
     try:
         session = Session(bind=engine)
-        result = session.query(Material).where(Material.codigo_material == codigo_material.upper()).all()
-        if result:
-            return True
-        else:
-            return False
+        result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
+        return bool(result)
         
     except Exception as e:
-        print(f'Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}')
+        print(f'❌ Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}')
+        return False
+
+# Obtener material puntual
+def obtener_material(codigo_material: str):
+    """
+    Función para obtener los detalles de un Material por su código
+    """
+    try:
+        session = Session(bind=engine)
+        m = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
+
+        if not m:
+            return f'⚠️ No se encontró material con código {codigo_material.upper()}'
+
+        return {
+            "Código": m.codigo_material,
+            "Descripción": m.descripcion,
+            "Color": m.color,
+            "Categoría": m.categoria,
+            "Subcategoría": m.subcategoria,
+            "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
+            "Comentarios": m.comentarios
+        }
+
+    except Exception as e:
+        return f'❌ Error al obtener material: {e}'

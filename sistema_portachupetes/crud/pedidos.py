@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from database.models import Stock, Material, Pedido, MaterialPedido
 from datetime import datetime
 from database.engine import engine
-from crud.stock import incrementar_stock
+from crud.stock import _incrementar_stock
+import pandas as pd
 #Continuar con la Creacion de las siguientes Funciones para los pedidos
 
 def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
@@ -57,7 +58,6 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
         print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
         return []
 
-    
 def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
 
     """
@@ -104,7 +104,7 @@ def cancelar_pedido(id:int):
     try:
         session = Session(bind=engine)
 
-        pedido = session.query(Pedido).get(Pedido, id)
+        pedido = session.query(Pedido).filter(Pedido.id == id).first()
 
         mensajes = []
 
@@ -118,16 +118,150 @@ def cancelar_pedido(id:int):
             materiales_consumidos = session.query(MaterialPedido).where(MaterialPedido.pedido_id == pedido.id).all()
 
             for material in materiales_consumidos:
-                incrementar_stock(material.codigo_material.upper(), material.cantidad_usada)
+                _incrementar_stock(session, material.codigo_material.upper(), material.cantidad_usada)
                 mensajes.append(f'El material {material.codigo_material.upper()} se incremento {material.cantidad_usada} unidades nuvamente al Stock')
                 session.delete(material)
-            
-            session.commit()
+                session.commit()
 
-            return f'{id} Pedido Cancelado con Exito. Detalle de Materiales Devueltos al Stock:\n{mensajes}'
+            return f'Pedido con ID {id} Cancelado con Exito. Detalle de Materiales Devueltos al Stock:\n{mensajes}'
         
         else:
             return f'No se encontro Ningun Pedido con el ID {id}. Porfavor volver a intentarlo'
 
     except Exception as e:
         return f'Ocurrio un problema a la hora de Cancelar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
+
+def terminar_pedido(id:int):
+    '''
+    Funcion para terminar un pedido por su ID
+    '''
+
+    try:
+        session = Session(bind=engine)
+
+        pedido = session.query(Pedido).filter(Pedido.id == id).first()
+
+        if pedido:
+
+            if pedido.estado == 'Cancelado':
+                return f'No se puede terminado un pedido cancelado. ID del Pedido {id}, Estado: {pedido.estado}'
+            
+            pedido.estado = 'Terminado'
+            session.commit()
+            return f'ID pedido: {id} Terminado con Exito'
+        
+        else:
+            return f'No se encontro Ningun Pedido con el ID {id}. Porfavor volver a intentarlo'
+
+    except Exception as e:
+        return f'Ocurrio un problema a la hora de Cancelar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
+
+def modificar_pedido(id: int, columna: str, valor: str):
+    '''
+    Función para modificar detalles menores del pedido
+    '''
+    try:
+        session = Session(bind=engine)
+
+        pedido = session.query(Pedido).filter(Pedido.id == id).first()
+        estados_prohibidos = ['Cancelado', 'Terminado']
+
+        if pedido is None:
+            return f'No se encontró ningún Pedido con el ID {id}'
+
+        if columna == 'estado':
+            return 'No se puede cambiar el Estado de un Pedido mediante esta función'
+
+        if pedido.estado in estados_prohibidos:  # type: ignore
+            return f'No se pueden modificar pedidos en estado {pedido.estado}'
+
+        if not hasattr(Pedido, columna):
+            return f'La columna "{columna}" no existe en el modelo Pedido'
+        
+        columna_attr = getattr(Pedido, columna)
+        session.query(Pedido).filter(Pedido.id == id).update({columna_attr: valor})
+        session.commit()
+        return f'Pedido con ID {id} modificado correctamente. El nuevo valor para el campo "{columna}" es "{valor}"'
+
+    except Exception as e:
+        return f'Ocurrió un problema al modificar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
+
+def listar_todos_pedidos():
+    '''
+    Función para listar todos los pedidos en un DataFrame (ideal para Streamlit)
+    '''
+    try:
+        session = Session(bind=engine)
+        pedidos = session.query(Pedido).all()
+
+        # Convertir a lista de diccionarios
+        data = [
+            {
+                "ID": pedido.id,
+                "Estado": pedido.estado,
+                "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
+                "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
+            }
+            for pedido in pedidos
+        ]
+
+        # Pasar a DataFrame
+        return pd.DataFrame(data)
+    
+    except Exception as e:
+        return f'Ocurrió un problema a la hora de Listar todos los Pedidos. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
+    
+def obtener_pedido(id: int):
+    try:
+        session = Session(bind=engine)
+        pedido = session.query(Pedido).filter(Pedido.id == id).first()
+        if pedido:
+            return {
+                "ID": pedido.id,
+                "Cliente": pedido.cliente,
+                "Estado": pedido.estado,
+                "Fecha Pedido": pedido.fecha_pedido,
+                "Teléfono": pedido.telefono,
+            }
+        return f"No se encontró ningún pedido con ID {id}"
+    except Exception as e:
+        return f"Error al obtener pedido {id}. Detalle: {e}"
+
+def listar_materiales_pedido(id: int):
+    try:
+        session = Session(bind=engine)
+        materiales = session.query(MaterialPedido).filter(MaterialPedido.pedido_id == id).all()
+        if not materiales:
+            return f"No hay materiales asociados al pedido {id}"
+        data = [
+            {"Código": m.codigo_material, "Cantidad": m.cantidad_usada}
+            for m in materiales
+        ]
+        return pd.DataFrame(data)
+    except Exception as e:
+        return f"Error al listar materiales del pedido {id}. Detalle: {e}"
+    
+def listar_pedidos_por_estado(estado: str):
+    try:
+        session = Session(bind=engine)
+        pedidos = session.query(Pedido).filter(Pedido.estado == estado).all()
+        data = [
+            {"ID": p.id, "Cliente": p.cliente, "Fecha": datetime.date(p.fecha_pedido)} # type: ignore
+            for p in pedidos
+        ]
+        return pd.DataFrame(data)
+    except Exception as e:
+        return f"Error al listar pedidos en estado {estado}. Detalle: {e}"
+
+#NO SE DEBE UTILIZAR ESTA FUNCION
+def eliminar_pedido(id: int):
+    try:
+        session = Session(bind=engine)
+        pedido = session.query(Pedido).filter(Pedido.id == id).first()
+        if not pedido:
+            return f"No se encontró el pedido con ID {id}"
+        session.delete(pedido)
+        session.commit()
+        return f"Pedido con ID {id} eliminado correctamente"
+    except Exception as e:
+        return f"Error al eliminar pedido {id}. Detalle: {e}"
