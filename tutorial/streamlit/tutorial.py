@@ -183,3 +183,90 @@ if uploded_file:
     st.write(f'File name {uploded_file.name}, Size: {file_size:.2f} KB')
     if file_size > 500:
         st.warning('File is large preview may be limeted')
+
+st.divider()
+st.subheader('Caching Data')
+@st.cache_data
+def load_large_csv(file):
+    return pd.read_csv(file)
+
+st.write('Upload a large CSV for caching Demo')
+large_csv = st.file_uploader('Uplaod CSV for caching', type=['csv'], key='large')
+
+if large_csv:
+    df_large = load_large_csv(large_csv)
+    st.write('Cached CSV Loaded')
+    st.dataframe(large_csv)
+
+import numpy as np
+
+st.divider()
+st.subheader('Line Charts')
+data = pd.DataFrame(np.random.randn(20,3), columns=['A', 'B', 'C'])
+
+st.subheader('Line Chart A')
+st.line_chart(data)
+
+st.subheader('Area Chart B')
+st.area_chart(data)
+
+st.subheader('Line Chart C')
+st.bar_chart(data)
+st.divider()
+st.subheader('Forms Demo')
+
+with st.form('Contact Forms'):
+
+    name = st.text_input('Place your name here: ', placeholder='EJ Juan Mera')
+    email = st.text_input('Place your email here: ', placeholder='EJ juanignaciofmera@gmail.com')
+    message = st.text_area('Place a message here: ')
+    submitted = st.form_submit_button('Submit', help='help')
+
+    if submitted:
+        st.success(f'Thanks {name}, we will contact you at {email}')
+
+st.divider()
+st.subheader('Forms Demo 2')
+
+with st.form('Calc_form'):
+    num1 = st.number_input('Enter first Number', step=1)
+    num2 = st.number_input('Enter second Number', step=1)
+    calculate = st.form_submit_button('Calculate Sum')
+
+    if calculate:
+        st.write(f'Results {num1 + num2}')
+
+st.divider()
+st.header('Step by Step Forms')
+
+if 'step' not in st.session_state:
+    st.session_state.step=1
+
+if 'name' not in st.session_state:
+    st.session_state.name=''
+
+if 'choice' not in st.session_state:
+    st.session_state.choice=''
+
+def next_step():
+    st.session_state.step+=1
+
+def restart():
+    st.session_state.step=1
+    st.session_state.choice=''
+    st.session_state.name=''
+
+if st.session_state == 1:
+    st.write('Step 1: Enter Your Name')
+    st.text_input('Name', value=st.session_state.name, key='name')
+    st.button('Next Step', on_click=next_step)
+
+elif st.session_state == 2:
+    st.write(f'Hello {st.session_state.name} Step 2: Choose your reference')
+    st.text_input('Name', value=st.session_state.name, key='name')
+    st.button('Next Step', on_click=next_step)
+
+elif st.session_state == 3:
+    st.write('Step 1: Enter Your Name')
+    st.text_input('Name', value=st.session_state.name, key='name')
+    st.button('Next Step', on_click=next_step)
