@@ -5,7 +5,7 @@ from database.engine import engine
 from datetime import datetime
 
 #Agrego Material
-def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, comentarios:str, fecha_ingreso=datetime.now()):
+def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, comentarios:str, fecha_ingreso=datetime.today()) -> str:
 
     '''
     Funcion para agregar un nuevo Material a la Tabla Materiales
@@ -18,10 +18,11 @@ def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:
 
         session.add(nuevo_material)
         session.commit()
-        return f'✅ Nuevo material "{nuevo_material.descripcion}" con código {nuevo_material.codigo_material} agregado con éxito el {fecha_ingreso.date()}'
+
+        return f'✅ Nuevo material "{nuevo_material.descripcion}" con código {nuevo_material.codigo_material} agregado con éxito el {fecha_ingreso}'
 
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de generar un nuevo Material. Archivo --> CRUD - Material - Funcion "agregar_material". DETALLE: {e}')
+        return(f'❌ Ocurrio un error a la hora de generar un nuevo Material. Archivo --> CRUD - Material - Funcion "agregar_material". DETALLE: {e}')
 
 #Actualizar Material
 def actualizar_material(codigo_material: str, columna: str, nuevo_valor):
@@ -44,7 +45,7 @@ def actualizar_material(codigo_material: str, columna: str, nuevo_valor):
             return f'⚠️ No se encontró material con código {codigo_material.upper()}'
 
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de actualizar un Material. Archivo --> CRUD - Material - Funcion "actualizar_material". DETALLE: {e}')
+        return(f'❌ Ocurrio un error a la hora de actualizar un Material. Archivo --> CRUD - Material - Funcion "actualizar_material". DETALLE: {e}')
 
 #Elimino Material
 def eliminar_material(codigo_material:str):
@@ -64,7 +65,7 @@ def eliminar_material(codigo_material:str):
             return f'⚠️ No se encontró material con código {codigo_material.upper()}'
         
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de eliminar un Material. Archivo --> CRUD - Material - Funcion "eliminar_material". DETALLE: {e}')
+        return(f'❌ Ocurrio un error a la hora de eliminar un Material. Archivo --> CRUD - Material - Funcion "eliminar_material". DETALLE: {e}')
 
 #Listo Todos los Materiales
 def listar_todos_materiales():
@@ -94,7 +95,7 @@ def listar_todos_materiales():
 
         
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de Listar los Materiales. Archivo --> CRUD - Material - Funcion "listo_todo". DETALLE: {e}')
+        return(f'❌ Ocurrio un error a la hora de Listar los Materiales. Archivo --> CRUD - Material - Funcion "listo_todo". DETALLE: {e}')
 
 #Filtro por Condicion
 def listo_con_filtro(columna:str, valor):
@@ -131,7 +132,7 @@ def listo_con_filtro(columna:str, valor):
         return pd.DataFrame(data)
         
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de Listar los Materiales utilizando una condicion. Archivo --> CRUD - Material - Funcion "listo_con_filtro". DETALLE: {e}')
+        return(f'❌ Ocurrio un error a la hora de Listar los Materiales utilizando una condicion. Archivo --> CRUD - Material - Funcion "listo_con_filtro". DETALLE: {e}')
 
 #Validar Material
 def validar_material(codigo_material: str) -> bool:
@@ -144,7 +145,7 @@ def validar_material(codigo_material: str) -> bool:
         return bool(result)
         
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}')
+        return(f'❌ Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}')
         return False
 
 # Obtener material puntual
