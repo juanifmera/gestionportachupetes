@@ -14,12 +14,17 @@ def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:
     try:
         session = Session(bind=engine)
 
-        nuevo_material = Material(codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria.capitalize(), subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize())
+        nuevo_material = Material(codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria, subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize())
+
+        result = session.query(Material).filter(Material.codigo_material == nuevo_material.codigo_material).first()
+
+        if result:
+            return f'⚠️ Ya existe el material {result.codigo_material} en la lista de Materiales. Detalle del material: {result.descripcion}. Porfavor verificar esta informacion y actualizar de forma correspondiente'
 
         session.add(nuevo_material)
         session.commit()
 
-        return f'✅ Nuevo material "{nuevo_material.descripcion}" con código {nuevo_material.codigo_material} agregado con éxito el {fecha_ingreso}'
+        return f'✅ Nuevo material "{nuevo_material.descripcion}" con código {nuevo_material.codigo_material} agregado con éxito el {fecha_ingreso.strftime('%d/%m/%Y')}'
 
     except Exception as e:
         return(f'❌ Ocurrio un error a la hora de generar un nuevo Material. Archivo --> CRUD - Material - Funcion "agregar_material". DETALLE: {e}')
@@ -92,7 +97,6 @@ def listar_todos_materiales():
         ]
 
         return pd.DataFrame(data)
-
         
     except Exception as e:
         return(f'❌ Ocurrio un error a la hora de Listar los Materiales. Archivo --> CRUD - Material - Funcion "listo_todo". DETALLE: {e}')
@@ -145,7 +149,7 @@ def validar_material(codigo_material: str) -> bool:
         return bool(result)
         
     except Exception as e:
-        return(f'❌ Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}')
+        return(f'❌ Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}') # type: ignore
         return False
 
 # Obtener material puntual
@@ -172,3 +176,54 @@ def obtener_material(codigo_material: str):
 
     except Exception as e:
         return f'❌ Error al obtener material: {e}'
+
+# Listar dg filtrado 
+def listar_materiales_filtrados(categoria="Todas", subcategoria="Todas", color="Todos") -> pd.DataFrame:
+    try:
+        session = Session(bind=engine)
+        query = session.query(Material)
+
+        if categoria != "Todas":
+            query = query.filter(Material.categoria.ilike(categoria))
+
+        if subcategoria != "Todas":
+            query = query.filter(Material.subcategoria.ilike(subcategoria))
+
+        if color != "Todos":
+            query = query.filter(Material.color.ilike(color))
+
+        materiales = query.all()
+
+        df = pd.DataFrame([{
+            "Código": m.codigo_material,
+            "Descripción": m.descripcion,
+            "Color": m.color,
+            "Categoría": m.categoria,
+            "Subcategoría": m.subcategoria,
+            "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
+            "Comentarios": m.comentarios
+        } for m in materiales])
+
+        return df
+    
+    except Exception as e:
+        print(f"Error al filtrar materiales: {e}")
+        return pd.DataFrame()
+    
+def actualizar_varios_campos(codigo_material: str, cambios: dict):
+    try:
+        session = Session(bind=engine)
+        material = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
+
+        if not material:
+            return f"❌ No se encontró material con código {codigo_material}"
+
+        for campo, valor in cambios.items():
+            if hasattr(material, campo):
+                setattr(material, campo, valor)
+
+        session.commit()
+        return f"✅ Material {codigo_material.upper()} actualizado correctamente."
+
+    except Exception as e:
+        return f"❌ Error al actualizar material: {e}"

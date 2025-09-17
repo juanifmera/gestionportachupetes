@@ -16,7 +16,7 @@ class Material(Base):
     subcategoria:Mapped[str] = mapped_column(String, nullable=False)
     fecha_ingreso:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
     comentarios:Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    stock:Mapped['Stock'] = relationship(back_populates='material', uselist=False)
+    stock:Mapped['Stock'] = relationship(back_populates='material', uselist=False, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'Material Generado: {self.codigo_material}, Categoria: {self.categoria}, Subcategoria: {self.subcategoria}'

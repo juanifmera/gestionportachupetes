@@ -28,7 +28,16 @@ try:
     #print(crear_pedido('Juan mera', data))
     #print(cancelar_pedido(9))
     #print(modificar_pedido(10, 'papeles', '1126640509'))
-    print(listar_pedidos_por_estado('Cancelado'))
+    #print(listar_pedidos_por_estado('Cancelado'))
+    # Eliminar materiales con categoría inválida
+    session = Session(bind=engine)
+    materiales_invalidos = session.query(Material).filter(Material.categoria == 'Dijes').all()
+
+    for m in materiales_invalidos:
+        print(f"Eliminando material inválido: {m.codigo_material} - {m.categoria}")
+        session.delete(m)
+        session.commit()
+
  
 except Exception as e:
     print(f'Ocurrio un error al intentar generar los dummy entries. ERROR: {e}')
