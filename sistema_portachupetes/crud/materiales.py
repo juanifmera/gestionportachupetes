@@ -6,16 +6,15 @@ from datetime import datetime
 
 #Agrego Material
 def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, comentarios:str, fecha_ingreso=datetime.today()) -> str:
-
     '''
     Funcion para agregar un nuevo Material a la Tabla Materiales
     '''
     
     try:
         session = Session(bind=engine)
-
+        
+        # Valido si el material ya existe en la lista de materiales por su Codigo (Primary Key)
         nuevo_material = Material(codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria, subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize())
-
         result = session.query(Material).filter(Material.codigo_material == nuevo_material.codigo_material).first()
 
         if result:
@@ -54,7 +53,6 @@ def actualizar_material(codigo_material: str, columna: str, nuevo_valor):
 
 #Elimino Material
 def eliminar_material(codigo_material:str):
-
     '''
     Funcion para eliminar un  Material de la Tabla Materiales utilizando su codigo_material
     '''
@@ -74,7 +72,6 @@ def eliminar_material(codigo_material:str):
 
 #Listo Todos los Materiales
 def listar_todos_materiales():
-
     '''
     Funcion para Listar todos los materiales de la Tabla Materiales
     '''
@@ -103,7 +100,6 @@ def listar_todos_materiales():
 
 #Filtro por Condicion
 def listo_con_filtro(columna:str, valor):
-
     '''
     Funcion para Listar todos los materiales de la Tabla Materiales en funcion a una condicion
     '''

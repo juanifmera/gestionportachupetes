@@ -22,12 +22,11 @@ def incrementar_stock(codigo_material: str, cantidad: int):
     """
     try:
         session = Session(bind=engine)
-
-        if _incrementar_stock(session, codigo_material, cantidad):
+        
+        result = _incrementar_stock(session, codigo_material, cantidad)
+        if result:
             session.commit()
-            return f'✅ Stock actualizado para {codigo_material.upper()}'
-        else:
-            return f'⚠️ No se encontró el material {codigo_material.upper()} en el stock'
+            return result
 
     except Exception as e:
         print(f'❌ Ocurrio un error a la hora de incrementar el Stock del siguiente Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "incrementar_stock". DETALLE: {e}')
@@ -38,11 +37,12 @@ def _incrementar_stock(session, codigo_material: str, cantidad: int) -> bool:
     if stock and cantidad > 0:
         stock.cantidad += cantidad
         stock.fecha_modificacion = datetime.now()
-        return True
-    return False
+        return f'✅ Stock actualizado para {codigo_material.upper()}. Agregaste {cantidad} unidades. Actualmente el producto tiene {stock.cantidad} unidades.' #type:ignore
+    else:
+        return f'⚠️ No se encontró el material {codigo_material.upper()} en el stock' #type:ignore
 
 #Agregar Stock
-def agregar_stock(codigo_material: str, cantidad: int, fecha_modificacion=datetime.now()):
+def agregar_stock(codigo_material: str, cantidad: int, fecha_modificacion=datetime.today()):
     """
     Agrega una nueva entrada de stock o incrementa si ya existe
     """
@@ -150,7 +150,7 @@ def listar_stock():
                 "Categoría": s.material.categoria,
                 "Subcategoría": s.material.subcategoria,
                 "Cantidad": s.cantidad,
-                "Última Modificación": datetime.date(s.fecha_modificacion) if s.fecha_modificacion else None #type: ignore
+                "Última Modificación": datetime.date(s.fecha_modificacion)#type: ignore
             }
             for s in results
         ]
