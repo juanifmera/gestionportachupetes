@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 from datetime import datetime
 from crud.materiales import agregar_material, eliminar_material, listar_todos_materiales, obtener_material
-from crud.stock import agregar_stock, eliminar_stock, actualizar_stock, reducir_stock, listar_stock, obtener_stock
+from crud.stock import agregar_stock, eliminar_stock, actualizar_stock, listar_stock, obtener_stock
 from logic.verificador import verificar_confeccion_portachupetes
 from crud.pedidos import crear_pedido, obtener_materiales_utilizados, cancelar_pedido, modificar_pedido, terminar_pedido, listar_todos_pedidos, listar_materiales_pedido, listar_pedidos_por_estado
 import pandas as pd
@@ -449,8 +449,123 @@ elif eleccion == 'Stock':
 
 ### PEDIDOS ###
 elif eleccion == 'Pedidos':
-    st.title('Pedidos')
+    st.title('Pedidos :money_with_wings:')
     st.divider()
+
+    tabs_pedido = st.tabs(['Generar Pedido :smile:', 'Cancelar pedido :angry:', 'Actualizar pedido :zipper_mouth_face:', 'Listar pedidos :alien:', 'Proximamente ... :dizzy_face:'])
+    
+    ## GENERAR PEDIDO ##
+    with tabs_pedido[0]:
+
+        st.subheader("🧾 Generar un Nuevo Pedido", divider="rainbow")
+
+        # ---------- Paso 1: Configuración dinámica ----------
+        st.markdown("### 🔧 Paso 1: Configuración de materiales")
+        col1, col2 = st.columns(2)
+        with col1:
+            cantidad_bolitas = st.number_input("¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_bolitas")
+        with col2:
+            cantidad_lentejas = st.number_input("¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_lentejas")
+
+        st.divider()
+
+        # ---------- Paso 2: Formulario principal ----------
+        with st.form("generar_pedido_form", clear_on_submit=False, border=True):
+
+            st.markdown("### 📋 Paso 2: Detalles del pedido")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                cliente = st.text_input("🧑 Nombre del cliente *", placeholder="Ej: Maria González")
+                telefono = st.text_input("📞 Teléfono", placeholder="Ej: 1122334455")
+
+            with col2:
+                nombre_bebe = st.text_input("👶 Nombre del bebé *", placeholder="Ej: JULIÁN")
+                fecha = st.date_input("📅 Fecha del pedido", value=datetime.today(), format='DD/MM/YYYY')
+
+            st.divider()
+
+            stock_df = listar_stock()
+
+            # --- Broche (obligatorio) ---
+            broches = stock_df[stock_df["Categoría"] == "Broche"]["Código"].tolist() #type:ignore
+            broche = st.selectbox("📌 Seleccionar Broche *", broches)
+
+            # --- Dijes ---
+            dijes_normales = stock_df[stock_df["Categoría"] == "Dije"]["Código"].tolist()#type:ignore
+            dije_normal = st.selectbox("✨ Dije Normal (opcional)", [""] + dijes_normales)
+
+            dijes_especiales = stock_df[stock_df["Categoría"] == "Dije Especial"]["Código"].tolist()#type:ignore
+            dije_especial = st.selectbox("💎 Dije Especial (opcional)", [""] + dijes_especiales)
+
+            # --- Bolitas (dinámico) ---
+            st.markdown("### 🔵 Bolitas")
+            bolitas_seleccionadas = []
+            bolitas_disponibles = stock_df[stock_df["Categoría"] == "Bolita"]["Código"].tolist()#type:ignore
+
+            for i in range(cantidad_bolitas):
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}")
+                with col2:
+                    cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"bolita_cantidad_{i}")
+                bolitas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
+
+            # --- Lentejas (dinámico) ---
+            st.markdown("### 🟤 Lentejas")
+            lentejas_seleccionadas = []
+            lentejas_disponibles = stock_df[stock_df["Categoría"] == "Lenteja"]["Código"].tolist()#type:ignore
+
+            for i in range(cantidad_lentejas):
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}")
+                with col2:
+                    cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"lenteja_cantidad_{i}")
+                lentejas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
+
+            st.divider()
+
+            # ---------- Botón de envío ----------
+            submit = st.form_submit_button("🧾 Generar Pedido", width='stretch', type='primary')
+
+            if submit:
+                if not cliente or not nombre_bebe or not broche:
+                    st.error("❌ Debés completar los campos obligatorios: Cliente, Nombre del Bebé y Broche.")
+                    st.stop()
+
+                datos_portachupetes = {
+                    "broche": broche,
+                    "nombre": nombre_bebe.upper(),
+                    "dije_normal": dije_normal if dije_normal else None,
+                    "dije_especial": dije_especial if dije_especial else None,
+                    "bolitas": bolitas_seleccionadas,
+                    "lentejas": lentejas_seleccionadas,
+                }
+
+                resultado = crear_pedido(cliente, datos_portachupetes, telefono=telefono, fecha_pedido=fecha)#type:ignore
+
+                if "éxito" in resultado.lower():
+                    st.success(resultado)
+                    st.balloons()
+                else:
+                    st.error(resultado)
+
+    ## CANCELAR PEDIDO ##
+    with tabs_pedido[1]:
+        pass
+
+    ## ACTUALIZAR PEDIDO ##
+    with tabs_pedido[2]:
+       pass
+
+    ## LISTAR PEDIDOS ##
+    with tabs_pedido[3]:
+        pass
+
+    ## PROXIMAS FEATURES ##    
+    with tabs_pedido[4]:
+        pass
 
 ### METRICAS ###
 elif eleccion == 'Metricas':
