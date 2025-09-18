@@ -113,8 +113,7 @@ def cancelar_pedido(id:int):
                 return f'No se puede cancelar un pedido ya Cancelado o Terminado. ID del Pedido {id}, Estado: {pedido.estado}'
             
             pedido.estado = 'Cancelado'
-
-            materiales_consumidos = session.query(MaterialPedido).where(MaterialPedido.pedido_id == pedido.id).all()
+            materiales_consumidos = session.query(MaterialPedido).filter(MaterialPedido.pedido_id == pedido.id).all()
 
             for material in materiales_consumidos:
                 _incrementar_stock(session, material.codigo_material.upper(), material.cantidad_usada)
@@ -197,9 +196,10 @@ def listar_todos_pedidos():
         data = [
             {
                 "ID": pedido.id,
-                "Estado": pedido.estado,
-                "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
                 "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
+                "Telefono": getattr(pedido, "telefono", None),
+                "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
+                "Estado": pedido.estado,
             }
             for pedido in pedidos
         ]
@@ -245,12 +245,20 @@ def listar_pedidos_por_estado(estado: str):
         session = Session(bind=engine)
         pedidos = session.query(Pedido).filter(Pedido.estado == estado).all()
         data = [
-            {"ID": p.id, "Cliente": p.cliente, "Fecha": datetime.date(p.fecha_pedido)} # type: ignore
-            for p in pedidos
+            {
+                "ID": pedido.id,
+                "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
+                "Telefono": getattr(pedido, "telefono", None),
+                "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
+                "Estado": pedido.estado,
+            }
+            for pedido in pedidos
         ]
+        # Pasar a DataFrame
         return pd.DataFrame(data)
+    
     except Exception as e:
-        return f"Error al listar pedidos en estado {estado}. Detalle: {e}"
+        return f'Ocurrió un problema a la hora de Listar todos los Pedidos. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
 
 #NO SE DEBE UTILIZAR ESTA FUNCION
 def eliminar_pedido(id: int):

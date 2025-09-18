@@ -1,10 +1,11 @@
 import streamlit as st
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timedelta, date
+from PIL import Image
 from crud.materiales import agregar_material, eliminar_material, listar_todos_materiales, obtener_material
 from crud.stock import agregar_stock, eliminar_stock, actualizar_stock, listar_stock, obtener_stock
 from logic.verificador import verificar_confeccion_portachupetes
-from crud.pedidos import crear_pedido, obtener_materiales_utilizados, cancelar_pedido, modificar_pedido, terminar_pedido, listar_todos_pedidos, listar_materiales_pedido, listar_pedidos_por_estado
+from crud.pedidos import crear_pedido, obtener_materiales_utilizados, cancelar_pedido, modificar_pedido, terminar_pedido, listar_todos_pedidos, listar_materiales_pedido, listar_pedidos_por_estado, obtener_pedido
 import pandas as pd
 
 st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
@@ -383,7 +384,7 @@ elif eleccion == 'Stock':
 
         with st.form('form_actualizar_stock', border=True):
 
-            nueva_cantidad = st.number_input('Colocar cantidad actualizada de Stock:', value=stock['Cantidad'], min_value=1) #type:ignore
+            nueva_cantidad = st.number_input('Colocar cantidad actualizada de Stock:', value=stock['Cantidad'], min_value=0) #type:ignore
             submit = st.form_submit_button('Actualizar Stock', icon='💎', type='primary', width='stretch')
 
             if submit:
@@ -466,8 +467,6 @@ elif eleccion == 'Pedidos':
             cantidad_bolitas = st.number_input("¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_bolitas")
         with col2:
             cantidad_lentejas = st.number_input("¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_lentejas")
-
-        st.divider()
 
         # ---------- Paso 2: Formulario principal ----------
         with st.form("generar_pedido_form", clear_on_submit=False, border=True):
@@ -553,20 +552,128 @@ elif eleccion == 'Pedidos':
 
     ## CANCELAR PEDIDO ##
     with tabs_pedido[1]:
-        pass
+        st.subheader('🗑️ Cancelar Pedido', divider='rainbow')
+        st.write('Revisá los pedidos en proceso y seleccioná uno para cancelarlo.')
 
+        col1, col2, col3, col4 = st.columns(4)
+
+        df_pedidos = listar_todos_pedidos()
+        df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
+
+        st.dataframe(df_pedidos_filtrado, width='stretch')
+
+        with st.form('form_cancelar_pedido', border=False):
+            if not df_pedidos.empty: #type:ignore
+                pedido_a_cancelar = st.selectbox('Seleccionar el pedido a cancelar', sorted(df_pedidos_filtrado['ID'].unique())) #type:ignore
+
+                confirmar = st.checkbox('⚠️ Confirmo que deseo cancelar este pedido. Cancelar el pedido hara que los materiales sean reingresados al Stock', value=False)
+                submit = st.form_submit_button("Cancelar Pedido", type="primary", width='stretch', icon="💣")
+
+                if submit:
+                    if not confirmar:
+                        st.warning("⚠️ Debes confirmar la eliminación marcando la casilla.")
+                        st.stop()
+
+                    resultado = cancelar_pedido(int(pedido_a_cancelar)) #type:ignore
+                    st.success(resultado)
+                    st.balloons()
+                
     ## ACTUALIZAR PEDIDO ##
     with tabs_pedido[2]:
-       pass
+        st.subheader('✏️ Actualizar Pedido', divider='rainbow')
+        st.write('Seleccioná un pedido activo y modificá los campos que desees.')
+
+        df_pedidos = listar_todos_pedidos()
+        df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
+
+        if df_pedidos_activos.empty:# type: ignore
+            st.warning("❌ No hay pedidos activos para actualizar.")
+            st.stop()
+
+        id_pedido = st.selectbox("Seleccionar Pedido a Actualizar (ID)", sorted(df_pedidos_activos['ID'].unique()))# type: ignore
+        datos_pedido = obtener_pedido(int(id_pedido))  # type: ignore
+
+        with st.form("form_actualizar_pedido", border=True):
+
+            nuevo_cliente = st.text_input("Nombre del Cliente", value=datos_pedido['Cliente'])  # type: ignore
+            nuevo_telefono = st.text_input("Teléfono", value=datos_pedido['Teléfono'])  # type: ignore
+            nueva_fecha = st.date_input("Fecha del Pedido", value=datos_pedido['Fecha Pedido'], format='DD/MM/YYYY')  # type: ignore
+
+            st.caption("No se permite modificar el estado del pedido desde este formulario.")
+            submit = st.form_submit_button(":dart: Actualizar Pedido", type="primary", width="stretch")
+
+            if submit:
+                cambios = {}
+
+                if nuevo_cliente != datos_pedido['Cliente']:  # type: ignore
+                    cambios['cliente'] = nuevo_cliente
+                if nuevo_telefono != datos_pedido['Teléfono']:  # type: ignore
+                    cambios['telefono'] = nuevo_telefono
+                if nueva_fecha != datos_pedido['Fecha Pedido']:  # type: ignore
+                    cambios['fecha_pedido'] = nueva_fecha
+
+                if not cambios:
+                    st.info("No se detectaron cambios para actualizar.")
+                    st.stop()
+
+                errores = []
+                for campo, valor in cambios.items():
+                    resultado = modificar_pedido(int(id_pedido), campo, valor)  # type: ignore
+                    if resultado.startswith("Pedido con ID"):
+                        st.success(resultado)
+                    else:
+                        errores.append(resultado)
+
+                if errores:
+                    st.error("\n".join(errores))
+                else:
+                    st.balloons()
 
     ## LISTAR PEDIDOS ##
     with tabs_pedido[3]:
-        pass
+        st.subheader('📰 Listar Pedidos', divider='rainbow')
+        st.write('Revisá los Pedidos confeccionados.')
+
+        col1, col2, col3 = st.columns(3)
+
+        df_original = listar_todos_pedidos()
+
+        with col1:
+            filtro_estado = st.selectbox('Filtrar por Estado', key='filtro_estado_pedido', options=['Todas'] + sorted(df_original['Estado'].unique()), width='stretch')  # type: ignore
+
+        with col2:
+            buscar_codigo = st.text_input('Buscar por ID', key='filtro_cod_pedido', placeholder='EJ: 1', width='stretch')
+
+        with col3:
+            buscar_cliente = st.text_input('Buscar por Cliente', key='filtro_cliente_pedido', placeholder='EJ: Maria Luz', width='stretch')
+
+        df_filtrado = df_original.copy()  # type: ignore
+
+        # Asegurar que la columna es datetime.date
+        df_filtrado['Fecha Creación'] = pd.to_datetime(df_filtrado['Fecha Creación']).dt.date
+
+        # Aplicar filtros
+        if filtro_estado != 'Todas':
+            df_filtrado = df_filtrado[df_filtrado['Estado'] == filtro_estado]
+
+        if buscar_codigo:
+            df_filtrado = df_filtrado[df_filtrado['ID'] == int(buscar_codigo)]
+
+        if buscar_cliente:
+            df_filtrado = df_filtrado[df_filtrado['Cliente'].str.contains(buscar_cliente, case=False)]
+
+        # Mostrar resultados
+        if df_filtrado.empty:
+            st.dataframe(df_filtrado, width='stretch')
+            st.warning("❌ No hay Pedidos disponibles con los filtros seleccionados.")
+        else:
+            st.dataframe(df_filtrado, width='stretch')
+            st.info(f'Se encontraron {df_filtrado.shape[0]} registros para su búsqueda')
 
     ## PROXIMAS FEATURES ##    
     with tabs_pedido[4]:
-        pass
-
+        st.info(':warning: Mas Acciones seran Incorporadas en breve!!! (Llevar Ideas a Juan Mera)')
+        
 ### METRICAS ###
 elif eleccion == 'Metricas':
     st.title('Metricas')
