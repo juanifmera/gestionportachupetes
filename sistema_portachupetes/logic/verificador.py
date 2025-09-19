@@ -3,17 +3,16 @@ from database.engine import engine
 from database.models import Stock
 
 
-def verificar_confeccion_portachupetes(data: dict) -> dict: # type: ignore
+def verificar_confeccion_portachupetes(data: dict) -> dict:  # type: ignore
     """
     Valida si hay suficiente stock para confeccionar un portachupetes según los materiales solicitados.
     Recibe un diccionario con los siguientes posibles campos:
         - broche: str (obligatorio)
         - nombre: str (opcional)
-        - dije_normal: str (opcional)
-        - dije_especial: str (opcional)
+        - dijes_normales: list[{'codigo': str}]
+        - dijes_especiales: list[{'codigo': str}]
         - bolitas: list[{'codigo': str, 'cantidad': int}]
         - lentejas: list[{'codigo': str, 'cantidad': int}]
-
     Devuelve un diccionario con:
         - 'success': bool
         - 'faltantes': list[str]
@@ -57,13 +56,13 @@ def verificar_confeccion_portachupetes(data: dict) -> dict: # type: ignore
             for letra, cantidad in letras_recuento.items():
                 verificar_material(letra, cantidad, f"Letra '{letra.upper()}'")
 
-        # Dije normal (opcional)
-        if "dije_normal" in data and data["dije_normal"]:
-            verificar_material(data["dije_normal"], 1, "Dije normal")
+        # Dijes normales (pueden ser varios)
+        for dije in data.get("dijes_normales", []):
+            verificar_material(dije["codigo"], 1, f"Dije normal {dije['codigo']}")
 
-        # Dije especial (opcional)
-        if "dije_especial" in data and data["dije_especial"]:
-            verificar_material(data["dije_especial"], 1, "Dije especial")
+        # Dijes especiales (pueden ser varios)
+        for dije in data.get("dijes_especiales", []):
+            verificar_material(dije["codigo"], 1, f"Dije especial {dije['codigo']}")
 
         # Bolitas (pueden ser varias)
         for bolita in data.get("bolitas", []):
@@ -78,6 +77,6 @@ def verificar_confeccion_portachupetes(data: dict) -> dict: # type: ignore
             "faltantes": faltantes,
             "detalles": detalles
         }
-    
+
     except Exception as e:
-        print(f'Ocurrio algun problema a la hora de validar la confeccion del pedido del portachupetes. Carpeta Logic - Archivo verificador2 - Funcion "verificar_confeccion". ERROR: {e}')
+        print(f'Ocurrió un problema al validar la confección del pedido. Archivo logic/verificador.py. Función: verificar_confeccion_portachupetes. ERROR: {e}')

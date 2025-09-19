@@ -15,7 +15,7 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
     try:
         result = verificar_confeccion_portachupetes(data)
 
-        if result["success"] == True:
+        if result["success"]:
             materiales = []
 
             # Broche
@@ -34,12 +34,13 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
                 for letra, cantidad in letras_recuento.items():
                     materiales.append((letra, cantidad))
 
-            # Dijes
-            if "dije_normal" in data and data["dije_normal"]:
-                materiales.append((data["dije_normal"], 1))
+            # Dijes normales (puede haber varios)
+            for dije in data.get("dijes_normales", []):
+                materiales.append((dije["codigo"], 1))
 
-            if "dije_especial" in data and data["dije_especial"]:
-                materiales.append((data["dije_especial"], 1))
+            # Dijes especiales (puede haber varios)
+            for dije in data.get("dijes_especiales", []):
+                materiales.append((dije["codigo"], 1))
 
             # Bolitas
             for bolita in data.get("bolitas", []):
@@ -57,7 +58,7 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
     except Exception as e:
         print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
         return []
-
+    
 def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
     """
     Genera un nuevo pedido y descuenta materiales del stock si hay suficiente.
@@ -133,7 +134,6 @@ def terminar_pedido(id:int):
     '''
     Funcion para terminar un pedido por su ID
     '''
-
     try:
         session = Session(bind=engine)
 
