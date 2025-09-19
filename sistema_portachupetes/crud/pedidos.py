@@ -272,3 +272,43 @@ def eliminar_pedido(id: int):
         return f"Pedido con ID {id} eliminado correctamente"
     except Exception as e:
         return f"Error al eliminar pedido {id}. Detalle: {e}"
+    
+def listar_materiales_pedido_completo():
+    """
+    Devuelve un DataFrame con la cantidad total de veces que cada material fue utilizado en pedidos.
+    Útil para métricas como los materiales más usados.
+    """
+    try:
+        session = Session(bind=engine)
+        
+        # Unir materiales y su uso en pedidos
+        query = (
+            session.query(
+                Material.codigo_material,
+                Material.descripcion,
+                Material.categoria,
+                Material.subcategoria,
+                Material.color,
+                MaterialPedido.cantidad_usada
+            )
+            .join(MaterialPedido, Material.codigo_material == MaterialPedido.codigo_material)
+        )
+
+        data = []
+        for row in query.all():
+            data.append({
+                "Código": row.codigo_material,
+                "Descripción": row.descripcion,
+                "Categoría": row.categoria,
+                "Subcategoría": row.subcategoria,
+                "Color": row.color,
+                "Cantidad Usada": row.cantidad_usada
+            })
+
+        df = pd.DataFrame(data)
+        df_agrupado = df.groupby(["Código", "Descripción", "Categoría", "Subcategoría", "Color"], as_index=False)["Cantidad Usada"].sum()
+        df_agrupado.sort_values("Cantidad Usada", ascending=False, inplace=True) #type:ignore
+        return df_agrupado
+
+    except Exception as e:
+        return f"❌ Error al listar materiales usados: {e}"
