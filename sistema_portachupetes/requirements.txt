@@ -1,0 +1,9 @@
+streamlit
+streamlit-authenticator
+sqlalchemy
+pandas
+numpy
+plotly
+jinja2
+requests
+python-dateutil
