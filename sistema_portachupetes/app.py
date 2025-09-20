@@ -13,7 +13,10 @@ def convertir_a_dict(obj):
     else:
         return obj
 
-config = convertir_a_dict(st.secrets)
+import copy
+config = convertir_a_dict(copy.deepcopy(st.secrets._secrets))
+
+st.write("DEBUG CONFIG:", config)
 
 authenticator = stauth.Authenticate(
     config['credentials'],
