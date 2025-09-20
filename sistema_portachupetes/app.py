@@ -6,7 +6,7 @@ import base64
 
 st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
 
-config = st.secrets
+config = dict(st.secrets)
 
 authenticator = stauth.Authenticate(
     config['credentials'],
