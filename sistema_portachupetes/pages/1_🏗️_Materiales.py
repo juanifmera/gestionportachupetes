@@ -2,6 +2,7 @@ import streamlit as st
 from crud.materiales import agregar_material, listar_todos_materiales, eliminar_material, actualizar_varios_campos, obtener_material
 from datetime import datetime, timedelta
 import pandas as pd
+from ui.utils.utils import mostrar_exito_y_reiniciar
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -63,10 +64,7 @@ with tabs_materiales[0]:
                     st.warning(resultado)
                 #Caso contrario, successfull
                 else:
-                    st.cache_data.clear()
-                    st.rerun()
-                    st.balloons()
-                    st.success(resultado)
+                    mostrar_exito_y_reiniciar(resultado)
                     
 ## ELIMINAR MATERIAL ##
 with tabs_materiales[1]:

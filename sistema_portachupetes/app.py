@@ -16,8 +16,6 @@ def convertir_a_dict(obj):
 
 config = convertir_a_dict(copy.deepcopy(st.secrets._secrets))
 
-st.write("DB URL:", st.secrets["DATABASE_URL"])
-
 authenticator = stauth.Authenticate(
     config['credentials'], #type:ignore
     config['cookie']['name'],#type:ignore
