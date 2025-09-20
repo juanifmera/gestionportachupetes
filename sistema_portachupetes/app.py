@@ -1,12 +1,19 @@
 import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
-from yaml.loader import SafeLoader
 import base64
 
 st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
 
-config = dict(st.secrets)
+def convertir_a_dict(obj):
+    if isinstance(obj, dict):
+        return {k: convertir_a_dict(v) for k, v in obj.items()}
+    elif hasattr(obj, "_asdict"):
+        return convertir_a_dict(obj._asdict())
+    else:
+        return obj
+
+config = convertir_a_dict(st.secrets)
 
 authenticator = stauth.Authenticate(
     config['credentials'],
