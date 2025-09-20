@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
 import base64
+import os
 
 st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
 
@@ -16,13 +17,11 @@ def convertir_a_dict(obj):
 import copy
 config = convertir_a_dict(copy.deepcopy(st.secrets._secrets))
 
-st.write("DEBUG CONFIG:", config)
-
 authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days']
+    config['credentials'], #type:ignore
+    config['cookie']['name'],#type:ignore
+    config['cookie']['key'],#type:ignore
+    config['cookie']['expiry_days']#type:ignore
 )
 
 # Mostrar login
@@ -68,13 +67,18 @@ if authentication_status:
 
     col1, col2, col3 = st.columns(3)
 
-    with open("ui/static/juan.png", "rb") as file:
+    ruta_base = os.path.dirname(__file__)
+    ruta_juan = os.path.join(ruta_base, "ui", "static", "juan.png")
+    ruta_icon = os.path.join(ruta_base, "ui", "static", "icon.png")
+    ruta_luli = os.path.join(ruta_base, "ui", "static", "luli.png")
+
+    with open(ruta_juan, "rb") as file:
         juan_image = file.read()
 
-    with open("ui/static/icon.png", "rb") as file:
+    with open(ruta_icon, "rb") as file:
         icon_image = file.read()
 
-    with open("ui/static/luli.png", "rb") as file:
+    with open(ruta_luli, "rb") as file:
         luli_image = file.read()
         
     juan_image = base64.b64encode(juan_image).decode()
