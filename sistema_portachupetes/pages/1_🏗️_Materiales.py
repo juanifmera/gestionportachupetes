@@ -63,12 +63,11 @@ with tabs_materiales[0]:
                     st.warning(resultado)
                 #Caso contrario, successfull
                 else:
-                    st.balloons()
-                    st.success(resultado)
                     st.cache_data.clear()
                     st.rerun()
-
-
+                    st.balloons()
+                    st.success(resultado)
+                    
 ## ELIMINAR MATERIAL ##
 with tabs_materiales[1]:
 
