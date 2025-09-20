@@ -7,3 +7,4 @@ plotly
 jinja2
 requests
 python-dateutil
+psycopg2
