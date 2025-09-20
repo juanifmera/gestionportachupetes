@@ -1,8 +1,8 @@
 import streamlit as st
 import streamlit_authenticator as stauth
-import yaml
 import base64
 import os
+import copy
 
 st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
 
@@ -14,8 +14,9 @@ def convertir_a_dict(obj):
     else:
         return obj
 
-import copy
 config = convertir_a_dict(copy.deepcopy(st.secrets._secrets))
+
+st.write("DB URL:", st.secrets["DATABASE_URL"])
 
 authenticator = stauth.Authenticate(
     config['credentials'], #type:ignore
