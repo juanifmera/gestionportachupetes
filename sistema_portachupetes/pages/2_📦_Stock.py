@@ -4,6 +4,16 @@ from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_s
 from crud.materiales import listar_todos_materiales
 import pandas as pd
 
+#Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
+@st.cache_data
+def cargar_materiales():
+    return listar_todos_materiales()
+
+#Cacheo el listado de Stock
+@st.cache_data
+def cargar_stock():
+    return listar_stock()
+
 st.title('Stock :memo:')
 st.divider()
 
@@ -14,8 +24,8 @@ with tabs_stock[0]:
     st.subheader('➕ Agregar Stock', divider='rainbow')
     st.write('Para agregar Stock de un material deberas completar el forms que se encuentra debajo. En caso de que ya exista el stock del material, este sera incrementado:')
 
-    df_stock = listar_stock()
-    df_materiales = listar_todos_materiales()
+    df_stock = cargar_stock()
+    df_materiales = cargar_materiales()
     st.dataframe(df_stock)
 
     with st.form('agregar_stock', True):
@@ -43,6 +53,8 @@ with tabs_stock[0]:
             if result.startswith('✅'): #type:ignore
                 st.success(result)
                 st.balloons()
+                st.cache_data.clear()
+                st.rerun()
 
             elif result.startswith('⚠️'): #type:ignore
                 st.warning(result)
@@ -57,7 +69,7 @@ with tabs_stock[1]:
 
     col1, col2, col3, col4 = st.columns(4)
 
-    df_original = listar_stock()
+    df_original = cargar_stock()
 
     with col1:
         filtro_categoria = st.selectbox('Filtrar por Categoría', ['Todas'] + sorted(df_original['Categoría'].unique())) # type: ignore
@@ -102,6 +114,9 @@ with tabs_stock[1]:
                 resultado = eliminar_stock(material_a_eliminar) #type:ignore
                 st.success(resultado)
                 st.balloons()
+                st.cache_data.clear()
+                st.rerun()
+
         else:
             submit = st.form_submit_button("Eliminar Material", type="primary", width='stretch', icon="💣")
             st.warning("❌ No hay materiales disponibles con los filtros seleccionados.")
@@ -111,7 +126,7 @@ with tabs_stock[2]:
     st.subheader('✏️ Actualizar Stock', divider='rainbow')
     st.write('Seleccioná un stock y modificá los campos que desees.')
 
-    df = listar_stock()
+    df = cargar_stock()
 
     if df.empty: # type: ignore
         st.warning("❌ No hay materiales para editar.")
@@ -130,6 +145,8 @@ with tabs_stock[2]:
             
             if result.startswith('✅'):#type:ignore
                 st.success(result)
+                st.cache_data.clear()
+                st.rerun()
             
             elif result.startswith('⚠️'): #type:ignore
                 st.warning(result)
@@ -144,7 +161,7 @@ with tabs_stock[3]:
 
     col1, col2, col3, col4 = st.columns(4)
 
-    df_original = listar_stock()
+    df_original = cargar_stock()
 
     with col1:
         filtro_categoria = st.selectbox('Filtrar por Categoría', key='filtro_cat_stock', options=['Todas'] + sorted(df_original['Categoría'].unique())) # type: ignore

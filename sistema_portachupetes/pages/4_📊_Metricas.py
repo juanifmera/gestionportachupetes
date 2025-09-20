@@ -10,6 +10,14 @@ from sqlalchemy import func
 from database.models import MaterialPedido, Material
 import plotly.graph_objects as go
 
+@st.cache_data
+def cargar_pedidos():
+    return listar_todos_pedidos()
+
+@st.cache_data
+def cargar_stock():
+    return listar_stock()
+
 st.title('Métricas 📊')
 st.divider()
 
@@ -29,7 +37,7 @@ with tabs_metricas[0]:
     hace_semana = hoy - timedelta(days=7)
     dos_semanas_atras = hace_semana - timedelta(days=7)
 
-    df_pedidos = listar_todos_pedidos()
+    df_pedidos = cargar_pedidos()
     df_pedidos["Fecha Creación"] = pd.to_datetime(df_pedidos["Fecha Creación"]) #type:ignore
 
     # Métricas generales
@@ -164,7 +172,7 @@ with tabs_metricas[0]:
 with tabs_metricas[1]:
     st.subheader("📉 Alerta de Stock Bajo", divider="rainbow")
 
-    df_stock = listar_stock()
+    df_stock = cargar_stock()
     stock_bajo = df_stock[df_stock['Cantidad'] < 5] # type: ignore
 
     st.dataframe(stock_bajo, width='stretch')

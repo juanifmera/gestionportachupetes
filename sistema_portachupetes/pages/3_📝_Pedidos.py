@@ -2,10 +2,25 @@ import streamlit as st
 from datetime import datetime, timedelta
 from crud.pedidos import crear_pedido, listar_todos_pedidos, modificar_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido
 from crud.stock import listar_stock
+from crud.materiales import listar_todos_materiales
 import pandas as pd
 from database.engine import engine
 from database.models import Material
 from sqlalchemy.orm import Session
+
+#Cacheo la lista de Stock
+@st.cache_data
+def cargar_stock():
+    return listar_stock()
+
+#Cacheo la lista de pedidos
+@st.cache_data
+def cargar_pedidos():
+    return listar_todos_pedidos()
+
+@st.cache_data
+def cargar_materiales():
+    return listar_todos_materiales()
 
 st.title('Pedidos :money_with_wings:')
 st.divider()
@@ -46,7 +61,7 @@ with tabs_pedido[0]:
 
         st.divider()
 
-        stock_df = listar_stock()
+        stock_df = cargar_stock()
 
         # --- Broche (obligatorio) ---
         broches = stock_df[stock_df["Categoría"] == "Broche"]["Código"].tolist() #type:ignore
@@ -120,6 +135,8 @@ with tabs_pedido[0]:
             if "éxito" in resultado.lower():
                 st.success(resultado)
                 st.balloons()
+                st.cache_data.clear()
+                st.rerun()
             else:
                 st.error(resultado)
 
@@ -130,7 +147,7 @@ with tabs_pedido[1]:
 
     col1, col2, col3, col4 = st.columns(4)
 
-    df_pedidos = listar_todos_pedidos()
+    df_pedidos = cargar_pedidos()
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
@@ -150,13 +167,15 @@ with tabs_pedido[1]:
                 resultado = cancelar_pedido(int(pedido_a_cancelar)) #type:ignore
                 st.success(resultado)
                 st.balloons()
+                st.cache_data.clear()
+                st.rerun()
 
 ## TERMINAR PEDIDO ##
 with tabs_pedido[2]:
     st.subheader('📦 Terminar Pedido', divider='rainbow')
     st.write('Seleccioná un pedido en proceso para marcarlo como terminado.')
 
-    df_pedidos = listar_todos_pedidos()
+    df_pedidos = cargar_pedidos()
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso']  #type:ignore
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
@@ -182,13 +201,15 @@ with tabs_pedido[2]:
                 resultado = terminar_pedido(int(pedido_a_terminar))  # type: ignore
                 st.success(resultado)
                 st.balloons()
+                st.cache_data.clear()
+                st.rerun()
             
 ## ACTUALIZAR PEDIDO ##
 with tabs_pedido[3]:
     st.subheader('✏️ Actualizar Pedido', divider='rainbow')
     st.write('Seleccioná un pedido activo y modificá los campos que desees.')
 
-    df_pedidos = listar_todos_pedidos()
+    df_pedidos = cargar_pedidos()
     df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
 
     if df_pedidos_activos.empty:# type: ignore
@@ -226,13 +247,13 @@ with tabs_pedido[3]:
                 resultado = modificar_pedido(int(id_pedido), campo, valor)  # type: ignore
                 if resultado.startswith("Pedido con ID"):
                     st.success(resultado)
+                    st.cache_data.clear()
+                    st.rerun()
                 else:
                     errores.append(resultado)
 
             if errores:
                 st.error("\n".join(errores))
-            else:
-                st.balloons()
 
 ## LISTAR PEDIDOS ##
 with tabs_pedido[4]:
@@ -241,7 +262,7 @@ with tabs_pedido[4]:
 
     col1, col2, col3 = st.columns(3)
 
-    df_original = listar_todos_pedidos()
+    df_original = cargar_pedidos()
 
     with col1:
         filtro_estado = st.selectbox('Filtrar por Estado', key='filtro_estado_pedido', options=['Todas'] + sorted(df_original['Estado'].unique()), width='stretch')  # type: ignore
@@ -281,7 +302,7 @@ with tabs_pedido[5]:
     st.write("Seleccioná un pedido *Terminado* o *En proceso* para ver los materiales utilizados en su confección.")
 
     # Obtener todos los pedidos
-    df_pedidos = listar_todos_pedidos()
+    df_pedidos = cargar_pedidos()
 
     # Filtrar solo los pedidos válidos
     if isinstance(df_pedidos, pd.DataFrame) and not df_pedidos.empty:
@@ -305,28 +326,22 @@ with tabs_pedido[5]:
                 st.markdown("### 🧱 Materiales utilizados")
 
                 # Obtener materiales
-                df_materiales = listar_materiales_pedido(int(pedido_seleccionado)) #type:ignore
+                with st.spinner(f'Cargando Materiales del Pedido {pedido_seleccionado}'):
+                    df_materiales = listar_materiales_pedido(int(pedido_seleccionado)) #type:ignore
 
                 # Enriquecer con categoría (si hay datos)
-                if isinstance(df_materiales, pd.DataFrame) and not df_materiales.empty:
+                if not df_materiales.empty : #type:ignore
                     # Traer info de materiales (para obtener categoría)
-                    session = Session(bind=engine)
-                    materiales = session.query(Material).all()
-                    df_info = pd.DataFrame([{
-                        "Código": m.codigo_material,
-                        "Categoría": m.categoria,
-                        'Descripción':m.descripcion,
-                        'Color':m.color,
-                    } for m in materiales])
+                    df_info = cargar_materiales()
 
                     # Hacemos merge con los materiales usados
-                    df_final = pd.merge(df_materiales, df_info, on="Código", how="left")
+                    df_final = pd.merge(df_materiales, df_info, on="Código", how="left") #type:ignore
 
                     # Ordenar columnas
                     df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad"]]
-
                     st.dataframe(df_final, width='stretch')
                     st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido.")
+                    
                 else:
                     st.warning("⚠️ No se encontraron materiales asociados a este pedido.")
             else:

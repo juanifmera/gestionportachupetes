@@ -6,7 +6,6 @@ from datetime import datetime
 from database.engine import engine
 from crud.stock import _incrementar_stock
 import pandas as pd
-#Continuar con la Creacion de las siguientes Funciones para los pedidos
 
 def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
     """
@@ -230,16 +229,20 @@ def listar_materiales_pedido(id: int):
     try:
         session = Session(bind=engine)
         materiales = session.query(MaterialPedido).filter(MaterialPedido.pedido_id == id).all()
+
+        # Siempre devolver un DataFrame, incluso vacío
         if not materiales:
-            return f"No hay materiales asociados al pedido {id}"
+            return pd.DataFrame(columns=["Código", "Cantidad"])
+
         data = [
             {"Código": m.codigo_material, "Cantidad": m.cantidad_usada}
             for m in materiales
         ]
         return pd.DataFrame(data)
     except Exception as e:
-        return f"Error al listar materiales del pedido {id}. Detalle: {e}"
-    
+        # En caso de error, también devolver un DataFrame vacío (y loguear si querés)
+        return pd.DataFrame(columns=["Código", "Cantidad"])
+
 def listar_pedidos_por_estado(estado: str):
     try:
         session = Session(bind=engine)

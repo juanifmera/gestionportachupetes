@@ -3,6 +3,11 @@ from crud.materiales import agregar_material, listar_todos_materiales, eliminar_
 from datetime import datetime, timedelta
 import pandas as pd
 
+#Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
+@st.cache_data
+def cargar_materiales():
+    return listar_todos_materiales()
+
 st.title('Materiales :crown:')
 st.divider()
 
@@ -60,6 +65,9 @@ with tabs_materiales[0]:
                 else:
                     st.balloons()
                     st.success(resultado)
+                    st.cache_data.clear()
+                    st.rerun()
+
 
 ## ELIMINAR MATERIAL ##
 with tabs_materiales[1]:
@@ -69,7 +77,7 @@ with tabs_materiales[1]:
 
     col1, col2, col3, col4 = st.columns(4)
 
-    df_original = listar_todos_materiales()
+    df_original = cargar_materiales()
 
     with col1:
         filtro_categoria = st.selectbox('Filtrar por Categoría', ['Todas'] + sorted(df_original['Categoría'].unique())) # type: ignore
@@ -114,6 +122,8 @@ with tabs_materiales[1]:
                 resultado = eliminar_material(material_a_eliminar) #type:ignore
                 st.success(resultado)
                 st.balloons()
+                st.cache_data.clear()
+                st.rerun()
         else:
             submit = st.form_submit_button("Eliminar Material", type="primary", width='stretch', icon="💣")
             st.warning("❌ No hay materiales disponibles con los filtros seleccionados.")
@@ -123,7 +133,8 @@ with tabs_materiales[2]:
     st.subheader('✏️ Actualizar Material', divider='rainbow')
     st.write('Seleccioná un material y modificá los campos que desees.')
 
-    df = listar_todos_materiales()
+    with st.spinner('Cargando Registros ...'):
+        df = cargar_materiales()
 
     if df.empty: # type: ignore
         st.warning("❌ No hay materiales para editar.")
@@ -167,6 +178,8 @@ with tabs_materiales[2]:
                 resultado = actualizar_varios_campos(codigo_seleccionado, cambios) # type: ignore
                 st.balloons()
                 st.success(resultado)
+                st.cache_data.clear()
+                st.rerun()
 
 ## LISTAR MATERIAL ##
 with tabs_materiales[3]:
@@ -175,7 +188,7 @@ with tabs_materiales[3]:
 
     col1, col2, col3, col4 = st.columns(4)
 
-    df_original = listar_todos_materiales()
+    df_original = cargar_materiales()
 
     with col1:
         filtro_categoria = st.selectbox('Filtrar por Categoría', key='filtro_cat', options=['Todas'] + sorted(df_original['Categoría'].unique())) # type: ignore
