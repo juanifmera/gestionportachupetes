@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 
-def mostrar_exito_y_reiniciar(mensaje: str, delay: float = 1.2):
+def mostrar_exito_y_reiniciar(mensaje: str, delay: float = 1.5):
     """
     Muestra un mensaje de éxito, lanza la animación de globos,
     espera un poco, limpia la caché y recarga la app.
