@@ -6,11 +6,7 @@ import base64
 
 st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
 
-def cargar_config():
-    with open("config.yaml") as file:
-        return yaml.load(file, Loader=SafeLoader)
-
-config = cargar_config()
+config = st.secrets
 
 authenticator = stauth.Authenticate(
     config['credentials'],
