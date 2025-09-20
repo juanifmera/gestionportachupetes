@@ -4,9 +4,7 @@ from crud.pedidos import crear_pedido, listar_todos_pedidos, modificar_pedido, c
 from crud.stock import listar_stock
 from crud.materiales import listar_todos_materiales
 import pandas as pd
-from database.engine import engine
-from database.models import Material
-from sqlalchemy.orm import Session
+from ui.utils.utils import mostrar_exito_y_reiniciar
 
 #Cacheo la lista de Stock
 @st.cache_data
@@ -133,10 +131,7 @@ with tabs_pedido[0]:
             resultado = crear_pedido(cliente, datos_portachupetes, telefono=telefono, fecha_pedido=fecha) #type:ignore
 
             if "éxito" in resultado.lower():
-                st.success(resultado)
-                st.balloons()
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(resultado)
             else:
                 st.error(resultado)
 
@@ -165,10 +160,7 @@ with tabs_pedido[1]:
                     st.stop()
 
                 resultado = cancelar_pedido(int(pedido_a_cancelar)) #type:ignore
-                st.success(resultado)
-                st.balloons()
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(resultado)
 
 ## TERMINAR PEDIDO ##
 with tabs_pedido[2]:
@@ -199,10 +191,7 @@ with tabs_pedido[2]:
                     st.stop()
 
                 resultado = terminar_pedido(int(pedido_a_terminar))  # type: ignore
-                st.success(resultado)
-                st.balloons()
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(resultado)
             
 ## ACTUALIZAR PEDIDO ##
 with tabs_pedido[3]:
@@ -246,9 +235,7 @@ with tabs_pedido[3]:
             for campo, valor in cambios.items():
                 resultado = modificar_pedido(int(id_pedido), campo, valor)  # type: ignore
                 if resultado.startswith("Pedido con ID"):
-                    st.success(resultado)
-                    st.cache_data.clear()
-                    st.rerun()
+                    mostrar_exito_y_reiniciar(resultado)
                 else:
                     errores.append(resultado)
 

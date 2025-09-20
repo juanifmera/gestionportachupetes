@@ -117,10 +117,7 @@ with tabs_materiales[1]:
                     st.stop()
 
                 resultado = eliminar_material(material_a_eliminar) #type:ignore
-                st.success(resultado)
-                st.balloons()
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(resultado)
         else:
             submit = st.form_submit_button("Eliminar Material", type="primary", width='stretch', icon="💣")
             st.warning("❌ No hay materiales disponibles con los filtros seleccionados.")
@@ -173,10 +170,7 @@ with tabs_materiales[2]:
                 st.info("No se detectaron cambios. Nada que actualizar.")
             else:
                 resultado = actualizar_varios_campos(codigo_seleccionado, cambios) # type: ignore
-                st.balloons()
-                st.success(resultado)
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(resultado)
 
 ## LISTAR MATERIAL ##
 with tabs_materiales[3]:

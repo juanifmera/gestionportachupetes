@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_stock, obtener_stock
 from crud.materiales import listar_todos_materiales
 import pandas as pd
+from ui.utils.utils import mostrar_exito_y_reiniciar
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -51,10 +52,7 @@ with tabs_stock[0]:
             result = agregar_stock(codigo_material, cantidad) #type:ignore
 
             if result.startswith('✅'): #type:ignore
-                st.success(result)
-                st.balloons()
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(result)#type:ignore
 
             elif result.startswith('⚠️'): #type:ignore
                 st.warning(result)
@@ -112,10 +110,7 @@ with tabs_stock[1]:
                     st.stop()
 
                 resultado = eliminar_stock(material_a_eliminar) #type:ignore
-                st.success(resultado)
-                st.balloons()
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(resultado)#type:ignore
 
         else:
             submit = st.form_submit_button("Eliminar Material", type="primary", width='stretch', icon="💣")
@@ -144,9 +139,7 @@ with tabs_stock[2]:
             result = actualizar_stock(codigo_seleccionado, nueva_cantidad)#type:ignore
             
             if result.startswith('✅'):#type:ignore
-                st.success(result)
-                st.cache_data.clear()
-                st.rerun()
+                mostrar_exito_y_reiniciar(result)#type:ignore
             
             elif result.startswith('⚠️'): #type:ignore
                 st.warning(result)
