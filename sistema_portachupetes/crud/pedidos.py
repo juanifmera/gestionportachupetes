@@ -1,5 +1,4 @@
 from logic.verificador import verificar_confeccion_portachupetes
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 from database.models import Stock, Material, Pedido, MaterialPedido
 from datetime import datetime
