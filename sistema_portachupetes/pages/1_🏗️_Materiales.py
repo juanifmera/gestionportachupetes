@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import io
 from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
+import os
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -226,6 +227,8 @@ with tabs_materiales[4]:
     st.write('Realiza una carga masiva de Materiales en una sola acción.')
 
     st.markdown("### Primer paso: Descargar y Completar el Template")
+    ruta_base = os.path.dirname(__file__)
+    ruta_tempate_materiales = os.path.join(ruta_base,'..' "ui", "static", "Template Materiales - Udibaby.xlsx")
     df_template = pd.read_excel("../ui/static/Template Materiales - Udibaby.xlsx")
 
     def convert_to_download(df):
