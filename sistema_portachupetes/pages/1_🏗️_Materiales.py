@@ -5,7 +5,6 @@ import pandas as pd
 import io
 from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 import os
-import datetime as datetime
 import time
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
@@ -34,7 +33,7 @@ with tabs_materiales[0]:
 
             color = st.text_input('Agregar el color del Material', placeholder='EJ: Rojo, Azul, Blanco')
 
-            fecha_ingreso = st.date_input('Seleccion Fecha de Ingreso', value=datetime.now(), format='DD/MM/YYYY')
+            fecha_ingreso = st.date_input('Seleccion Fecha de Ingreso', value=datetime.today(), format='DD/MM/YYYY')
 
         with col2:
             descripcion = st.text_input('Agregar breve descripcion del Material', placeholder='EJ: Broche de Oso de Silicona Blanco')
