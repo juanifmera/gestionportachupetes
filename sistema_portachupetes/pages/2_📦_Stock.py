@@ -23,7 +23,7 @@ proteger_pagina()
 st.title('Stock :memo:')
 st.divider()
 
-tabs_stock = st.tabs(['Agregar Stock :smile:', 'Eliminar Stock :angry:', 'Actualizar Stock :zipper_mouth_face:', 'Listar Stock :alien:', 'Bulk Request :Skull:','Proximamente ... :dizzy_face:'])
+tabs_stock = st.tabs(['Agregar Stock :smile:', 'Eliminar Stock :angry:', 'Actualizar Stock :zipper_mouth_face:', 'Listar Stock :alien:', 'Bulk Request :skull:','Proximamente ... :dizzy_face:'])
 
 ## AGREGAR STOCK ##
 with tabs_stock[0]:
