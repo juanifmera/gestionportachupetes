@@ -5,6 +5,8 @@ import pandas as pd
 import io
 from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 import os
+import datetime as datetime
+import time
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -294,6 +296,8 @@ with tabs_materiales[4]:
     if submit:
         result = bulk_upload_materiales(df)
         st.success(result)
+        with st.spinner('Cargando entradas en la Base de Datos ..'):
+            time.sleep(10)
         st.rerun()
 
 ## PROXIMAS FEATURES ##
