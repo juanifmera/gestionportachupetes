@@ -2,12 +2,14 @@ import streamlit as st
 from crud.materiales import agregar_material, listar_todos_materiales, eliminar_material, actualizar_varios_campos, obtener_material
 from datetime import datetime, timedelta
 import pandas as pd
-from ui.utils.utils import mostrar_exito_y_reiniciar
+from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
 def cargar_materiales():
     return listar_todos_materiales()
+
+proteger_pagina()
 
 st.title('Materiales :crown:')
 st.divider()

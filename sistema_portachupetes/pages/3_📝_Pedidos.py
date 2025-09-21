@@ -4,7 +4,7 @@ from crud.pedidos import crear_pedido, listar_todos_pedidos, modificar_pedido, c
 from crud.stock import listar_stock
 from crud.materiales import listar_todos_materiales
 import pandas as pd
-from ui.utils.utils import mostrar_exito_y_reiniciar
+from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 
 #Cacheo la lista de Stock
 @st.cache_data
@@ -19,6 +19,8 @@ def cargar_pedidos():
 @st.cache_data
 def cargar_materiales():
     return listar_todos_materiales()
+
+proteger_pagina()
 
 st.title('Pedidos :money_with_wings:')
 st.divider()

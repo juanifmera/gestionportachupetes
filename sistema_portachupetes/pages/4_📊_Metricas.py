@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database.models import MaterialPedido, Material
 import plotly.graph_objects as go
+from ui.utils.utils import proteger_pagina
 
 @st.cache_data
 def cargar_pedidos():
@@ -17,6 +18,8 @@ def cargar_pedidos():
 @st.cache_data
 def cargar_stock():
     return listar_stock()
+
+proteger_pagina()
 
 st.title('Métricas 📊')
 st.divider()

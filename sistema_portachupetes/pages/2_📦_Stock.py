@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_stock, obtener_stock
 from crud.materiales import listar_todos_materiales
 import pandas as pd
-from ui.utils.utils import mostrar_exito_y_reiniciar
+from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -14,6 +14,8 @@ def cargar_materiales():
 @st.cache_data
 def cargar_stock():
     return listar_stock()
+
+proteger_pagina()
 
 st.title('Stock :memo:')
 st.divider()

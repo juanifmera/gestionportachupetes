@@ -15,3 +15,8 @@ def mostrar_exito_y_reiniciar(mensaje: str, delay: float = 1.5):
     time.sleep(delay)
     st.cache_data.clear()
     st.rerun()
+
+def proteger_pagina():
+    if "authentication_status" not in st.session_state or st.session_state["authentication_status"] != True:
+        st.warning("🔐 Debés iniciar sesión para acceder a esta página.")
+        st.stop()
