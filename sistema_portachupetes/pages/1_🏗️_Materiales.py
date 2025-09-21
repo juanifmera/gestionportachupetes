@@ -228,7 +228,7 @@ with tabs_materiales[4]:
 
     st.markdown("### Primer paso: Descargar y Completar el Template")
     ruta_base = os.path.dirname(__file__)
-    ruta_tempate_materiales = os.path.join(ruta_base,'..' "ui", "static", "Template Materiales - Udibaby.xlsx")
+    ruta_tempate_materiales = os.path.join(ruta_base,'..', "ui", "static", "Template Materiales - Udibaby.xlsx")
     df_template = pd.read_excel(ruta_tempate_materiales)
 
     def convert_to_download(df):
