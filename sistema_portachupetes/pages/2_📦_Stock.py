@@ -4,6 +4,9 @@ from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_s
 from crud.materiales import listar_todos_materiales
 import pandas as pd
 from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
+import os
+import io
+import time
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -20,7 +23,7 @@ proteger_pagina()
 st.title('Stock :memo:')
 st.divider()
 
-tabs_stock = st.tabs(['Agregar Stock :smile:', 'Eliminar Stock :angry:', 'Actualizar Stock :zipper_mouth_face:', 'Listar Stock :alien:', 'Proximamente ... :dizzy_face:'])
+tabs_stock = st.tabs(['Agregar Stock :smile:', 'Eliminar Stock :angry:', 'Actualizar Stock :zipper_mouth_face:', 'Listar Stock :alien:', 'Bulk Request :Skull:','Proximamente ... :dizzy_face:'])
 
 ## AGREGAR STOCK ##
 with tabs_stock[0]:
@@ -193,6 +196,84 @@ with tabs_stock[3]:
     if not df_filtrado.empty: # type: ignore
         st.dataframe(df_filtrado, width='stretch')
         st.info(f'Se encontraron {df_filtrado.shape[0]} registros para su busqueda')
+
+## BULK REQUEST ##
+with tabs_stock[4]:
+    st.subheader('🕵 Bulk Request', divider='rainbow')
+    st.write('Realiza una carga masiva de Stock en una sola acción.')
+
+    st.markdown("### Primer paso: Descargar y Completar el Template")
+
+    ruta_base = os.path.dirname(__file__)
+    ruta_template_stock = os.path.abspath(os.path.join(ruta_base, '..', 'ui', 'static', 'Template Stock - Udibaby.xlsx'))
+    df_template = pd.read_excel(ruta_template_stock)
+
+    def convert_to_download(df):
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Stock')
+        return output.getvalue()
+
+    st.download_button(
+        label='📥 Descargar Template para cargar stock',
+        data=convert_to_download(df_template),
+        file_name='Template Stock - Udibaby.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        type='primary',
+        use_container_width=True
+    )
+
+    st.divider()
+
+    st.markdown("### Segundo paso: Cargar el template y validar la información")
+    st.markdown("Colocá el Template aquí 👇")
+    file = st.file_uploader("📤 Subí tu archivo Excel con Stock", type=["xlsx"], key="file_upload_stock")
+
+    if file:
+        try:
+            df = pd.read_excel(file)
+            st.success("✅ Archivo cargado correctamente")
+            st.dataframe(df)
+        except Exception as e:
+            st.error(f"❌ Error al leer el archivo: {e}")
+
+    st.divider()
+
+    st.markdown("### Tercer paso: Realizar el Bulk Request de Stock")
+    st.markdown("Si todo está correcto, podés subir la información directamente a la base de datos.")
+
+    submit = st.button('📦 Subir Bulk Request de Stock', type='primary', width='stretch')
+
+    # Función para cargar múltiples registros de stock
+    def bulk_upload_stock(df):
+        try:
+            df = pd.read_excel(file)
+
+            for index, item in df.iterrows():
+                resultado = agregar_stock(codigo_material=item['codigo material'], cantidad=item['cantidad'])
+
+                with st.spinner('Agregando Stock...'):
+                    if resultado.startswith('✅'): #type:ignore
+                        st.success(resultado)
+
+                    elif resultado.startswith('⚠️'): #type:ignore
+                        st.warning(resultado)
+
+                    else:
+                        st.error(resultado)
+
+            return "✔️ Carga masiva de stock finalizada correctamente."
+
+        except Exception as e:
+            return f'❌ Error en el Bulk Request de Stock. Detalle: {e}'
+
+    if submit:
+        result = bulk_upload_stock(df)
+        st.success(result)
+        with st.spinner('Actualizando vista...'):
+            time.sleep(10)
+        st.cache_data.clear()
+        st.rerun()
 
 ## PROXIMAS FEATURES ##    
 with tabs_stock[4]:

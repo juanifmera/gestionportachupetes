@@ -257,7 +257,7 @@ with tabs_materiales[4]:
         try:
             df = pd.read_excel(file)
             st.success("✅ Archivo cargado correctamente")
-            st.dataframe(df.head())
+            st.dataframe(df)
         except Exception as e:
             st.error(f"❌ Error al leer el archivo: {e}")
 
