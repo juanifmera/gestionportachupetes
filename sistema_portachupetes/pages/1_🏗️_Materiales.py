@@ -272,12 +272,11 @@ with tabs_materiales[4]:
     def bulk_upload_materiales(df):
         try:
             df = pd.read_excel(file)
-
-            with st.spinner('Agregando Materiales a la Base de Datos ..'):
             
-                for index, material in df.iterrows():
-                    resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'],comentarios=material['comentarios'])
-
+            for index, material in df.iterrows():
+                resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'],comentarios=material['comentarios'])
+                
+                with st.spinner('Agregando Materiales a la Base de Datos ..'):
                     if resultado.startswith('✅'):
                         st.success(resultado)
 
@@ -287,7 +286,7 @@ with tabs_materiales[4]:
                     else:
                         st.error(resultado)
 
-                return "✔️ Carga masiva finalizada correctamente."
+            return "✔️ Carga masiva finalizada correctamente."
 
         except Exception as e:
             return f'Error a la hora de cargar un Bulk Request'
@@ -295,8 +294,9 @@ with tabs_materiales[4]:
     if submit:
         result = bulk_upload_materiales(df)
         st.success(result)
-        with st.spinner('Cargando entradas en la Base de Datos ..'):
+        with st.spinner('Porfavor verificar la carga de datos ..'):
             time.sleep(10)
+        st.cache_data.clear()
         st.rerun()
 
 ## PROXIMAS FEATURES ##
