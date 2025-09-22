@@ -16,6 +16,7 @@ class Material(Base):
     subcategoria:Mapped[str] = mapped_column(String, nullable=False)
     fecha_ingreso:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
     comentarios:Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    costo_unitario:Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     stock:Mapped['Stock'] = relationship(back_populates='material', uselist=False, cascade='all, delete-orphan')
 
     def __repr__(self):

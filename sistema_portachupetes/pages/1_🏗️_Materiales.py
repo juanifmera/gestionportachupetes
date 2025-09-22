@@ -35,6 +35,8 @@ with tabs_materiales[0]:
 
             fecha_ingreso = st.date_input('Seleccion Fecha de Ingreso', value=datetime.today(), format='DD/MM/YYYY')
 
+            comentarios = st.text_area('Colocar comentarios opcionales al Material')
+
         with col2:
             descripcion = st.text_input('Agregar breve descripcion del Material', placeholder='EJ: Broche de Oso de Silicona Blanco')
 
@@ -42,23 +44,25 @@ with tabs_materiales[0]:
 
             subcategoria = st.radio('Agregar una Subcategoria', ['Normal', 'Especial'], horizontal=True)
 
-        comentarios = st.text_area('Colocar comentarios opcionales al Material')
+            costo_unitario = st.number_input('Agregar el costo Unitario Promedio del Material', min_value=1, value=500)
+
 
         submit = st.form_submit_button('Agregar Material', icon='🚨', type='primary', width='stretch')
 
         #Verifico que todos los campos hayan sifo completados con exito
         if submit:
             if not codigo_material or not descripcion or not color or not categoria or not subcategoria or not fecha_ingreso:
-                st.error("⚠️ Todos los campos son obligatorios, excepto los comentarios.")
+                st.error("⚠️ Todos los campos son obligatorios, excepto los comentarios y el Costo Unitario Promedio.")
             else:
                 resultado = agregar_material(
-                    codigo_material,
-                    descripcion,
-                    color,
-                    categoria,
-                    subcategoria,
-                    comentarios,
-                    fecha_ingreso # type: ignore
+                    codigo_material=codigo_material,
+                    descripcion=descripcion,
+                    color=color,
+                    categoria=categoria,
+                    subcategoria=subcategoria,
+                    comentarios=comentarios,
+                    costo_unitario=costo_unitario,
+                    fecha_ingreso=fecha_ingreso # type: ignore
                 )
 
                 #Si el resultado comienza con Cruz, significa que algo salio mal, por lo tanto, error
@@ -155,6 +159,7 @@ with tabs_materiales[2]:
         with col2:
             subcategoria = st.radio("Subcategoría", ["Normal", "Especial"], horizontal=True, index=["Normal", "Especial"].index(material["Subcategoría"]))# type: ignore
             comentarios = st.text_area("Comentarios", value=material["Comentarios"])# type: ignore
+            costo_unitario = st.number_input('Costo Unitario', value=material['Costo Unitario'] or 0)
 
         submit = st.form_submit_button(":zap: Actualizar Material", type="primary", width='stretch')
 
@@ -168,9 +173,10 @@ with tabs_materiales[2]:
                 cambios["categoria"] = categoria
             if subcategoria != material["Subcategoría"]:# type: ignore
                 cambios["subcategoria"] = subcategoria
+            if costo_unitario != material['Costo Unitario']:
+                cambios['costo_unitario'] = costo_unitario
             if comentarios != material["Comentarios"]:# type: ignore
                 cambios["comentarios"] = comentarios
-
             if not cambios:
                 st.info("No se detectaron cambios. Nada que actualizar.")
             else:
@@ -274,7 +280,7 @@ with tabs_materiales[4]:
             df = pd.read_excel(file)
             
             for index, material in df.iterrows():
-                resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'],comentarios=material['comentarios'])
+                resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'], costo_unitario=material['costo unitario'],comentarios=material['comentarios'])
                 
                 with st.spinner('Agregando Materiales a la Base de Datos ..'):
                     if resultado.startswith('✅'):
