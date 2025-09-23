@@ -58,7 +58,7 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
         print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
         return []
     
-def crear_pedido(cliente: str, materiales_portachupete: dict, costo_total=0, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
+def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
     """
     Genera un nuevo pedido y descuenta materiales del stock si hay suficiente.
     """
