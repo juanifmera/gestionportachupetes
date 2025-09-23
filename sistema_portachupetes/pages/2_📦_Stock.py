@@ -32,7 +32,8 @@ with tabs_stock[0]:
 
     df_stock = cargar_stock()
     df_materiales = cargar_materiales()
-    df_final = pd.merge(df_materiales, df_stock, on='Código', how='left')
+    df_final = pd.merge(df_materiales, df_stock['Cantidad'], on='Código', how='left')
+    #df_final = df_final[['Código', 'Descripción_x', 'Color']]
     st.dataframe(df_final)
 
     with st.form('agregar_stock', True):
