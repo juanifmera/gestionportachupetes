@@ -5,7 +5,7 @@ from database.engine import engine
 from datetime import datetime
 
 #Agrego Material
-def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, comentarios:str, costo_unitario:int, fecha_ingreso=datetime.today()) -> str:
+def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, costo_unitario:int, comentarios='', fecha_ingreso=datetime.today()) -> str:
     '''
     Funcion para agregar un nuevo Material a la Tabla Materiales
     '''
@@ -14,7 +14,8 @@ def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:
         session = Session(bind=engine)
         
         # Valido si el material ya existe en la lista de materiales por su Codigo (Primary Key)
-        nuevo_material = Material(codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria, subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, costo_unitario=int(costo_unitario), comentarios=comentarios.capitalize())
+        nuevo_material = Material(codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria, subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize(), costo_unitario=int(costo_unitario))
+
         result = session.query(Material).filter(Material.codigo_material == nuevo_material.codigo_material).first()
 
         if result:
