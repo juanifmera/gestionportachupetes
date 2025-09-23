@@ -280,7 +280,7 @@ with tabs_materiales[4]:
             df = pd.read_excel(file)
             
             for index, material in df.iterrows():
-                resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'], costo_unitario=material['costo unitario'],comentarios=material['comentarios'])
+                resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'], comentarios=material['comentarios'], costo_unitario=material['costo unitario'])
                 
                 with st.spinner('Agregando Materiales a la Base de Datos ..'):
                     if resultado.startswith('✅'):
