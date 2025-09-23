@@ -200,6 +200,7 @@ def listar_todos_pedidos():
                 "Telefono": getattr(pedido, "telefono", None),
                 "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
                 "Estado": pedido.estado,
+                "Costo Total":calcular_costo_total_pedido(pedido.id)
             }
             for pedido in pedidos
         ]
