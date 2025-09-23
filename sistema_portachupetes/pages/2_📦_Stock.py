@@ -26,43 +26,68 @@ st.divider()
 tabs_stock = st.tabs(['Agregar Stock :smile:', 'Eliminar Stock :angry:', 'Actualizar Stock :zipper_mouth_face:', 'Listar Stock :alien:', 'Bulk Request :skull:','Proximamente ... :dizzy_face:'])
 
 ## AGREGAR STOCK ##
+## AGREGAR STOCK ##
 with tabs_stock[0]:
     st.subheader('➕ Agregar Stock', divider='rainbow')
-    st.write('Para agregar Stock de un material deberas completar el forms que se encuentra debajo. En caso de que ya exista el stock del material, este sera incrementado:')
+    st.write('Para agregar stock de un material completá el formulario. '
+             'En caso de que ya exista el stock del material, este será incrementado.')
 
-    df_stock = cargar_stock()
-    stock_activo = df_stock[df_stock['Cantidad'] != 0] #type:ignore
+    # Traigo materiales y stock
     df_materiales = cargar_materiales()
-    st.dataframe(stock_activo)
+    df_stock = cargar_stock()
 
-    with st.form('agregar_stock', True):
+    # Si el stock está vacío, genero un df con Códigos en 0 para no romper
+    if df_stock.empty:
+        df_stock = pd.DataFrame(columns=["Código", "Cantidad"])
 
+    # Filtrar materiales sin stock
+    sin_stock = df_stock[df_stock['Cantidad'] == 0]['Código'].tolist() if not df_stock.empty else df_materiales['Código'].tolist()
+
+    # Mostrar tabla de materiales sin stock
+    if sin_stock:
+        df_sin_stock = df_materiales[df_materiales['Código'].isin(sin_stock)]
+        if not df_sin_stock.empty:
+            st.warning("⚠️ Estos materiales no tienen stock actualmente:")
+            st.dataframe(df_sin_stock, use_container_width=True)
+
+    with st.form('agregar_stock', clear_on_submit=True):
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            codigo_material = st.selectbox('Colocar el Codigo del Material:' , sorted(df_materiales['Código'].unique())) # type: ignore
+            # Opciones con ⚠️ para los que no tienen stock
+            opciones = []
+            for cod in df_materiales['Código']:
+                if cod in sin_stock:
+                    opciones.append(f"{cod} ⚠️ (Sin stock)")
+                else:
+                    opciones.append(cod)
+
+            codigo_material = st.selectbox(
+                'Seleccionar el código del material:',
+                sorted(opciones)
+            )
+            # Limpiar el código (en caso de tener ⚠️)
+            codigo_material = codigo_material.split()[0]
 
         with col2:
-            cantidad = st.number_input('Colocar la Cantidad a Ingresar:', min_value=1, step=1)
+            cantidad = st.number_input('Cantidad a ingresar:', min_value=1, step=1)
 
         with col3:
-            fecha_ingreso = st.date_input('Colocar la Fecha de Ingreso:', value=datetime.today(), format='DD/MM/YYYY')
+            fecha_ingreso = st.date_input('Fecha de ingreso:', value=datetime.today(), format='DD/MM/YYYY')
 
-        submit = st.form_submit_button('Agregar Stock', icon='🚨', type='primary', width='stretch')
+        submit = st.form_submit_button('Agregar Stock', icon='🚨', type='primary', use_container_width=True)
 
         if submit:
-
             if not codigo_material or not cantidad:
-                st.error('Debes colocar informacion en los Input para Agregar Material')
-            
-            result = agregar_stock(codigo_material, cantidad) #type:ignore
+                st.error('Debes completar todos los campos.')
+                st.stop()
 
-            if result.startswith('✅'): #type:ignore
-                mostrar_exito_y_reiniciar(result)#type:ignore
+            result = agregar_stock(codigo_material, cantidad)  # type:ignore
 
-            elif result.startswith('⚠️'): #type:ignore
+            if result.startswith('✅'):
+                mostrar_exito_y_reiniciar(result)  # type:ignore
+            elif result.startswith('⚠️'):
                 st.warning(result)
-
             else:
                 st.error(result)
 
