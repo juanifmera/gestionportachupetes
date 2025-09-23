@@ -90,7 +90,6 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
                 stock.cantidad -= cantidad
 
         session.flush()
-        time.sleep(2)
 
         # Calcular costo total del pedido
         costo_total = calcular_costo_total_pedido(nuevo_pedido.id)
@@ -340,26 +339,29 @@ def listar_materiales_pedido_completo():
     except Exception as e:
         return f"❌ Error al listar materiales usados: {e}"
 
-def calcular_costo_total_pedido(pedido_id: int) -> int:
+def calcular_costo_total_pedido(pedido_id: int) -> float:
     """
-    Calcula el costo total de un pedido sumando (costo_unitario * cantidad_usada)
+    Calcula el costo total de un pedido sumando (costo_unitario * cantidad_usada).
+    Ignora materiales con costo_unitario NULL.
     """
     try:
         session = Session(bind=engine)
 
         total = session.query(
-            func.sum(Material.costo_unitario * MaterialPedido.cantidad_usada)
-                        ).select_from(MaterialPedido).join(
-                            Material, Material.codigo_material == MaterialPedido.codigo_material
-                        ).filter(
-                            MaterialPedido.pedido_id == pedido_id
-                        ).scalar()
+            func.sum(
+                func.coalesce(Material.costo_unitario, 0) * MaterialPedido.cantidad_usada
+            )
+        ).select_from(MaterialPedido).join(
+            Material, Material.codigo_material == MaterialPedido.codigo_material
+        ).filter(
+            MaterialPedido.pedido_id == pedido_id
+        ).scalar()
 
-        return int(total) or 0
+        return float(total) if total else 0.0
 
     except Exception as e:
         print(f"❌ Error al calcular el costo del pedido {pedido_id}: {e}")
-        return 0
+        return 0.0
 
 def actualizar_varios_campos_pedido(id: int, cambios: dict) -> str:
     """
