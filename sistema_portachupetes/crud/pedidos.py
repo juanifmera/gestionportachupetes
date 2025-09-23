@@ -236,7 +236,7 @@ def obtener_pedido(id: int):
                 "ID": pedido.id,
                 "Cliente": pedido.cliente,
                 "Estado": pedido.estado,
-                "Fecha Pedido": pedido.fecha_pedido,
+                "Fecha Pedido": datetime.date(pedido.fecha_pedido),
                 "Teléfono": pedido.telefono,
                 "Costo Total": pedido.costo_total,
             }
