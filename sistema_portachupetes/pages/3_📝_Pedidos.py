@@ -333,7 +333,7 @@ with tabs_pedido[5]:
                     st.dataframe(df_final, width='stretch')
 
                     st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido. "
-                            f"Costo total del Portachupetes: ${int(datos['Costo Total'])}")
+                            f"Costo total del Portachupetes: **${int(datos['Costo Total'])}**")
 
                     # 🔑 Validar letras extra
                     cantidad_letras = len(df_final[df_final['Categoría'] == 'Letra'])
