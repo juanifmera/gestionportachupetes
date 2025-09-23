@@ -216,8 +216,10 @@ def listar_todos_pedidos():
                 "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
                 "Telefono": getattr(pedido, "telefono", None),
                 "Fecha Creación": pedido.fecha_pedido, # type: ignore
-                "Estado": pedido.estado
+                "Estado": pedido.estado,
+                "Costo Total": calcular_costo_total_pedido(pedido.id)
             }
+            
             for pedido in pedidos
         ]
 
@@ -347,11 +349,11 @@ def calcular_costo_total_pedido(pedido_id: int) -> int:
 
         total = session.query(
             func.sum(Material.costo_unitario * MaterialPedido.cantidad_usada)
-        ).select_from(MaterialPedido).join(
-            Material, Material.codigo_material == MaterialPedido.codigo_material
-        ).filter(
-            MaterialPedido.pedido_id == pedido_id
-        ).scalar()
+                        ).select_from(MaterialPedido).join(
+                            Material, Material.codigo_material == MaterialPedido.codigo_material
+                        ).filter(
+                            MaterialPedido.pedido_id == pedido_id
+                        ).scalar()
 
         return int(total) or 0
 
