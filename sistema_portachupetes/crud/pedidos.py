@@ -194,7 +194,7 @@ def modificar_pedido(id: int, columna: str, valor):
             except:
                 return "⚠️ El valor ingresado para el costo no es válido (debe ser numérico)"
             
-        pedido.columna_attr = valor
+        pedido.columna_attr = valor #type:ignore
         session.commit()
         return f'Pedido con ID {id} modificado correctamente. El nuevo valor para el campo \"{columna}\" es \"{valor}\"'
 
@@ -236,7 +236,7 @@ def obtener_pedido(id: int):
                 "ID": pedido.id,
                 "Cliente": pedido.cliente,
                 "Estado": pedido.estado,
-                "Fecha Pedido": datetime.date(pedido.fecha_pedido),
+                "Fecha Pedido": pedido.fecha_pedido,
                 "Teléfono": pedido.telefono,
                 "Costo Total": pedido.costo_total,
             }

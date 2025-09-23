@@ -239,7 +239,7 @@ with tabs_pedido[3]:
                 st.info("No se detectaron cambios para actualizar.")
                 st.stop()
 
-            resultado = actualizar_varios_campos_pedido(int(id_pedido), cambios)  # NUEVA FUNCION
+            resultado = actualizar_varios_campos_pedido(int(id_pedido), cambios)  #type:ignore
 
             if resultado.startswith("✅"):
                 mostrar_exito_y_reiniciar(resultado)
