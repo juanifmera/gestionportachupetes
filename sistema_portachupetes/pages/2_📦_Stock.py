@@ -31,8 +31,9 @@ with tabs_stock[0]:
     st.write('Para agregar Stock de un material deberas completar el forms que se encuentra debajo. En caso de que ya exista el stock del material, este sera incrementado:')
 
     df_stock = cargar_stock()
+    stock_activo = df_stock[df_stock['Cantidad'] != 0] #type:ignore
     df_materiales = cargar_materiales()
-    st.dataframe(df_stock)
+    st.dataframe(stock_activo)
 
     with st.form('agregar_stock', True):
 
