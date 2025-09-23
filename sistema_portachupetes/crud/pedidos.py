@@ -6,6 +6,7 @@ from datetime import datetime
 from database.engine import engine
 from crud.stock import _incrementar_stock
 import pandas as pd
+import time
 
 def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
     """
@@ -89,6 +90,7 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
                 stock.cantidad -= cantidad
 
         session.flush()
+        time.sleep(2)
 
         # Calcular costo total del pedido
         costo_total = calcular_costo_total_pedido(nuevo_pedido.id)
