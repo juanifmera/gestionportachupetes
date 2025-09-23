@@ -331,7 +331,7 @@ with tabs_pedido[5]:
                     df_final['Costo Total'] = df_final['Cantidad'] * df_final['Costo Unitario']
                     df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario", 'Costo Total']]
                     st.dataframe(df_final, width='stretch')
-                    st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido. Costo total del Portachupetes: {datos['Costo Total']}")
+                    st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido. Costo total del Portachupetes: {int(datos['Costo Total'])}")
                     st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275%: **{int(datos['Costo Total'] * 2.75)}$**')
                     
                 else:
