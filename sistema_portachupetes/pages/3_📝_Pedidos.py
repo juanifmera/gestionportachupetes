@@ -333,7 +333,7 @@ with tabs_pedido[5]:
                     # Ordenar columnas
                     df_final.rename(columns={'Costo Unitario_x':'Costo Unitario'}, inplace=True)
                     df_final['Costo Total'] = df_final['Cantidad'] * df_final['Costo Unitario']
-                    df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario"]]
+                    df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario", 'Costo Total']]
                     costo_total = df_final["Costo Total"].sum()
                     st.dataframe(df_final, width='stretch')
                     st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido.")
