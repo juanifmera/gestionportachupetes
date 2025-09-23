@@ -1,5 +1,6 @@
 from logic.verificador import verificar_confeccion_portachupetes
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database.models import Stock, Material, Pedido, MaterialPedido
 from datetime import datetime
 from database.engine import engine
@@ -20,7 +21,7 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
             if "broche" in data:
                 materiales.append((data["broche"], 1))
             else:
-                print("No se encontró ningún broche en el portachupetes. FATAL ERROR")
+                return "No se encontró ningún broche en el portachupetes. FATAL ERROR" # type: ignore
 
             # Letras del nombre
             if "nombre" in data:
@@ -118,7 +119,8 @@ def cancelar_pedido(id:int):
                 _incrementar_stock(session, material.codigo_material.upper(), material.cantidad_usada)
                 mensajes.append(f'El material {material.codigo_material.upper()} se incremento {material.cantidad_usada} unidades nuvamente al Stock')
                 session.delete(material)
-                session.commit()
+            
+            session.commit()
 
             return f'Pedido con ID {id} Cancelado con Exito. Detalle de Materiales Devueltos al Stock:\n{mensajes}'
         
@@ -308,9 +310,29 @@ def listar_materiales_pedido_completo():
             })
 
         df = pd.DataFrame(data)
-        df_agrupado = df.groupby(["Código", "Descripción", "Categoría", "Subcategoría", "Color"], as_index=False)["Cantidad Usada"].sum()
+        df_agrupado = df.groupby(["Código", "Descripción", "Categoría", "Subcategoría", "Color", 'Costo Unitario'], as_index=False)["Cantidad Usada"].sum()
         df_agrupado.sort_values("Cantidad Usada", ascending=False, inplace=True) #type:ignore
         return df_agrupado
 
     except Exception as e:
         return f"❌ Error al listar materiales usados: {e}"
+
+def calcular_costo_total_pedido(pedido_id: int) -> float | str:
+    """
+    Calcula el costo total de un pedido sumando (costo_unitario * cantidad_usada)
+    """
+    try:
+        session = Session(bind=engine)
+
+        # Join entre Material y MaterialPedido
+        total = (
+            session.query(func.sum(Material.costo_unitario * MaterialPedido.cantidad_usada))
+            .join(Material, Material.codigo_material == MaterialPedido.codigo_material)
+            .filter(MaterialPedido.pedido_id == pedido_id)
+            .scalar()
+        )
+
+        return total or 0
+
+    except Exception as e:
+        return f"❌ Error al calcular el costo del pedido {pedido_id}: {e}"

@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime, timedelta
-from crud.pedidos import crear_pedido, listar_todos_pedidos, modificar_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido
+from crud.pedidos import crear_pedido, listar_todos_pedidos, modificar_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido, calcular_costo_total_pedido
 from crud.stock import listar_stock
 from crud.materiales import listar_todos_materiales
 import pandas as pd
@@ -282,7 +282,8 @@ with tabs_pedido[4]:
         st.dataframe(df_filtrado, width='stretch')
         st.warning("❌ No hay Pedidos disponibles con los filtros seleccionados.")
     else:
-        st.dataframe(df_filtrado, width='stretch')
+        df_filtrado["Costo Total"] = df_filtrado["ID"].apply(calcular_costo_total_pedido)
+        st.dataframe(df_filtrado[["ID", "Cliente", "Teléfono", "Fecha Creación", "Estado", "Costo Total"]], width='stretch')
         st.info(f'Se encontraron {df_filtrado.shape[0]} registros para su búsqueda')
 
 ## VISUALIZAR MATERIALES POR PEDIDO ##
