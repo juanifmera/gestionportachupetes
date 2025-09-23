@@ -1,6 +1,6 @@
 from logic.verificador import verificar_confeccion_portachupetes
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, select
 from database.models import Stock, Material, Pedido, MaterialPedido
 from datetime import datetime
 from database.engine import engine
@@ -247,14 +247,16 @@ def obtener_pedido(id: int):
 def listar_materiales_pedido(id: int):
     try:
         session = Session(bind=engine)
-        materiales = session.query(MaterialPedido).filter(MaterialPedido.pedido_id == id).all()
+        stm = select(MaterialPedido.codigo_material, MaterialPedido.cantidad_usada, Material.costo_unitario).join(Material, MaterialPedido.codigo_material == Material.codigo_material)
+        materiales = session.execute(stm).all()
+        #materiales = session.query(MaterialPedido).filter(MaterialPedido.pedido_id == id).all()
 
         # Siempre devolver un DataFrame, incluso vacío
         if not materiales:
             return pd.DataFrame(columns=["Código", "Cantidad"])
 
         data = [
-            {"Código": m.codigo_material, "Cantidad": m.cantidad_usada}
+            {"Código": m.codigo_material, "Cantidad": m.cantidad_usada, "Costo Unitario":m.costo_unitario}
             for m in materiales
         ]
         return pd.DataFrame(data)
