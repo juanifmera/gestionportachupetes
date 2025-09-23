@@ -332,9 +332,13 @@ with tabs_pedido[5]:
 
                     # Ordenar columnas
                     df_final.rename(columns={'Costo Unitario_x':'Costo Unitario'}, inplace=True)
+                    df_final['Costo Total'] = df_final['Cantidad'] * df_final['Costo Unitario']
                     df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario"]]
+                    costo_total = df_final["Costo Total"].sum()
                     st.dataframe(df_final, width='stretch')
                     st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido.")
+                    st.info(f'Costo total del Portachupetes: {costo_total}')
+                    st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275% {costo_total*2,75}')
                     
                 else:
                     st.warning("⚠️ No se encontraron materiales asociados a este pedido.")
