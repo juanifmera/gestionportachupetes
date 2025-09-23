@@ -281,7 +281,6 @@ with tabs_pedido[4]:
         st.dataframe(df_filtrado, width='stretch')
         st.warning("❌ No hay Pedidos disponibles con los filtros seleccionados.")
     else:
-        df_filtrado["Costo Total"] = df_filtrado['ID'].apply(lambda x: calcular_costo_total_pedido(x))
         st.dataframe(df_filtrado[["ID", "Cliente", "Telefono", "Fecha Creación", "Estado", "Costo Total"]], width='stretch')
         st.info(f'Se encontraron {df_filtrado.shape[0]} registros para su búsqueda')
 
