@@ -308,7 +308,7 @@ with tabs_pedido[5]:
                 **📞 Teléfono:** {datos['Teléfono'] if datos['Teléfono'] else ':red[Falta Dato]'}  
                 **📅 Fecha del Pedido:** {datos['Fecha Pedido'].strftime('%d/%m/%Y')}  
                 **📦 Estado:** {datos['Estado']}  
-                **💵 Costo:** {int(datos['Costo Total'])}
+                **💵 Costo:** ${int(datos['Costo Total'])}
                 """)
 
                 st.divider()
@@ -344,7 +344,7 @@ with tabs_pedido[5]:
                                 f'El cargo extra es de **${cargo_extra}**.')
 
                     st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275%: '
-                            f'**{int(datos["Costo Total"] * 2.75)}$**')
+                            f'**${int(datos["Costo Total"] * 2.75)}**')
 
                 else:
                     st.warning("⚠️ No se encontraron materiales asociados a este pedido.")
