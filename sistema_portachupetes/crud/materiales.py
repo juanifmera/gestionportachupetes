@@ -88,6 +88,7 @@ def listar_todos_materiales():
                 "Categoría": m.categoria,
                 "Subcategoría": m.subcategoria,
                 "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
+                "Costo Unitario": m.costo_unitario,
                 "Comentarios": m.comentarios
             }
             for m in materiales
@@ -124,6 +125,7 @@ def listo_con_filtro(columna:str, valor):
                 "Categoría": m.categoria,
                 "Subcategoría": m.subcategoria,
                 "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
+                "Costo Unitario": m.costo_unitario,
                 "Comentarios": m.comentarios
             }
             for m in result
