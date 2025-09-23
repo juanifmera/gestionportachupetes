@@ -32,8 +32,9 @@ with tabs_stock[0]:
 
     df_stock = cargar_stock()
     df_materiales = cargar_materiales()
-    df_final = pd.merge(df_materiales, df_stock[['Código', 'Cantidad']], on='Código', how='left')
+    df_final = pd.merge(df_materiales, df_stock[['Código', 'Cantidad']], on='Código', how='left') #type:ignore
     df_final['Cantidad'].fillna('⚠️', inplace=True)
+    df_final['Cantidad'].apply(lambda x: int(x) if isinstance(x, (int, float)) else x)
     st.dataframe(df_final)
 
     with st.form('agregar_stock', True):
