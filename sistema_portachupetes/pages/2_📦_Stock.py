@@ -33,7 +33,7 @@ with tabs_stock[0]:
     df_stock = cargar_stock()
     df_materiales = cargar_materiales()
     df_final = pd.merge(df_materiales, df_stock[['Código', 'Cantidad']], on='Código', how='left')
-    #df_final = df_final[['Código', 'Descripción_x', 'Color']]
+    df_final['Cantidad'].fillna('⚠️', inplace=True)
     st.dataframe(df_final)
 
     with st.form('agregar_stock', True):
