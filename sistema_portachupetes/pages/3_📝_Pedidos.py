@@ -310,8 +310,8 @@ with tabs_pedido[5]:
                 st.markdown(f"""
                 **👤 Cliente:** {datos['Cliente'].capitalize()}  
                 **📞 Teléfono:** {datos['Teléfono'] if datos['Teléfono'] else ':red[Falta Dato]'}  
-                **📅 Fecha del Pedido:** {datetime.date(datos['Fecha Pedido']).strftime('%d/%m/%Y')}  
-                **📦 Estado:** {datos['Estado']}  
+                **📅 Fecha del Pedido:** {datos['Fecha Pedido'].strftime('%d/%m/%Y')}  
+                **📦 Estado:** {datos['Estado']} 
                 """)
 
                 st.divider()
