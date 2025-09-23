@@ -33,10 +33,17 @@ with tabs_stock[0]:
     df_stock = cargar_stock()
     df_materiales = cargar_materiales()
     df_final = pd.merge(df_materiales, df_stock[['Código', 'Cantidad']], on='Código', how='left') #type:ignore
-    df_final['Cantidad'].fillna('⚠️', inplace=True)
-    df_final['Cantidad'].apply(lambda x: int(x) if isinstance(x, (int, float)) else x)
-    df_final['Cantidad'] = df_final['Cantidad'].astype(int)
-    st.dataframe(df_final)
+    df_final['Cantidad'].fillna(0, inplace=True)
+    df_stock = cargar_stock()
+    df_materiales = cargar_materiales()
+
+    # Aplicar estilo fila completa cuando la cantidad es 0
+    def resaltar_fila(row):
+        return ['background-color: #ffcccc' if row['Cantidad'] == 0 else '' for _ in row]
+
+    # Mostrar
+    st.dataframe(df_final.style.apply(resaltar_fila, axis=1))
+
 
     with st.form('agregar_stock', True):
 
