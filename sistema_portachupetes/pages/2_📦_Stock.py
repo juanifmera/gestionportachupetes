@@ -26,7 +26,6 @@ st.divider()
 tabs_stock = st.tabs(['Agregar Stock :smile:', 'Eliminar Stock :angry:', 'Actualizar Stock :zipper_mouth_face:', 'Listar Stock :alien:', 'Bulk Request :skull:','Proximamente ... :dizzy_face:'])
 
 ## AGREGAR STOCK ##
-## AGREGAR STOCK ##
 with tabs_stock[0]:
     st.subheader('➕ Agregar Stock', divider='rainbow')
     st.write('Para agregar stock de un material completá el formulario. '
@@ -58,7 +57,7 @@ with tabs_stock[0]:
             opciones = []
             for cod in df_materiales['Código']:
                 if cod in sin_stock:
-                    opciones.append(f"{cod} ⚠️ (Sin stock)")
+                    opciones.append(f"⚠️ {cod} (Sin stock)")
                 else:
                     opciones.append(cod)
 
