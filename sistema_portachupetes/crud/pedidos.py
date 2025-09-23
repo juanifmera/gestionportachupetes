@@ -217,7 +217,7 @@ def listar_todos_pedidos():
                 "ID": pedido.id,
                 "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
                 "Telefono": getattr(pedido, "telefono", None),
-                "Fecha Creación": pedido.fecha_pedido, # type: ignore
+                "Fecha Creación": datetime.date(pedido.fecha_pedido).strftime('%d/%m/%Y'), # type: ignore
                 "Estado": pedido.estado,
                 "Costo Total": pedido.costo_total
             }
@@ -240,7 +240,7 @@ def obtener_pedido(id: int):
                 "ID": pedido.id,
                 "Cliente": pedido.cliente,
                 "Estado": pedido.estado,
-                "Fecha Pedido": pedido.fecha_pedido,
+                "Fecha Pedido": datetime.date(pedido.fecha_pedido).strftime('%d/%m/%Y'),
                 "Teléfono": pedido.telefono,
                 "Costo Total": pedido.costo_total,
             }
@@ -278,7 +278,7 @@ def listar_pedidos_por_estado(estado: str):
                 "ID": pedido.id,
                 "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
                 "Telefono": getattr(pedido, "telefono", None),
-                "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
+                "Fecha Creación": datetime.date(pedido.fecha_pedido).strftime('%d/%m/%Y'), # type: ignore
                 "Estado": pedido.estado,
             }
             for pedido in pedidos

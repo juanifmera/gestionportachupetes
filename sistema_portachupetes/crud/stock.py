@@ -36,7 +36,7 @@ def _incrementar_stock(session, codigo_material: str, cantidad: int) -> bool:
     stock = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
     if stock and cantidad > 0:
         stock.cantidad += cantidad
-        stock.fecha_modificacion = datetime.now()
+        stock.fecha_modificacion = datetime.today()
         return f'✅ Stock actualizado para {codigo_material.upper()}. Agregaste {cantidad} unidades. Actualmente el producto tiene {stock.cantidad} unidades.' #type:ignore
     else:
         return f'⚠️ No se encontró el material {codigo_material.upper()} en el stock' #type:ignore
@@ -98,7 +98,7 @@ def actualizar_stock(codigo_material: str, cantidad: int):
 
         if validar_material(codigo_material) and result and cantidad > 0:
             result.cantidad = cantidad
-            result.fecha_modificacion = datetime.now() # type: ignore
+            result.fecha_modificacion = datetime.today() # type: ignore
             session.commit()
             return f'✅ Stock de {codigo_material.upper()} actualizado a {cantidad}'
         else:
@@ -120,7 +120,7 @@ def reducir_stock(codigo_material:str, cantidad:int):
 
             if item.cantidad >= cantidad:  # type: ignore
                 item.cantidad -= cantidad # type: ignore
-                item.fecha_modificacion = datetime.now() # type: ignore
+                item.fecha_modificacion = datetime.today() # type: ignore
                 session.commit()
                 return f'✅ Stock reducido. Nuevo stock para {codigo_material.upper()}: {item.cantidad}' # type: ignore
             else:
@@ -150,7 +150,7 @@ def listar_stock():
                 "Categoría": s.material.categoria,
                 "Subcategoría": s.material.subcategoria,
                 "Cantidad": s.cantidad,
-                "Última Modificación": datetime.date(s.fecha_modificacion)#type: ignore
+                "Última Modificación": datetime.date(s.fecha_modificacion).strftime('%d/%m/%Y')#type: ignore
             }
             for s in results
         ]
@@ -175,7 +175,7 @@ def obtener_stock(codigo_material: str):
         return {
             "Código": stock.codigo_material,
             "Cantidad": stock.cantidad,
-            "Última Modificación": stock.fecha_modificacion,
+            "Última Modificación": datetime.date(stock.fecha_modificacion).strftime('%d/%m/%Y'),
             "Descripción": stock.material.descripcion,
             "Color": stock.material.color,
             "Categoría": stock.material.categoria,
