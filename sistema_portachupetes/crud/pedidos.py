@@ -221,6 +221,7 @@ def obtener_pedido(id: int):
                 "Estado": pedido.estado,
                 "Fecha Pedido": pedido.fecha_pedido,
                 "Teléfono": pedido.telefono,
+                "Costo Total": pedido.costo_total,
             }
         return f"No se encontró ningún pedido con ID {id}"
     except Exception as e:

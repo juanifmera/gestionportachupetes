@@ -172,6 +172,7 @@ with tabs_pedido[2]:
 
     df_pedidos = cargar_pedidos()
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso']  #type:ignore
+    df_pedidos_filtrado['Costo Total'] = df_pedidos_filtrado['ID'].apply(lambda x: calcular_costo_total_pedido(x))#type:ignore
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
 
@@ -203,6 +204,7 @@ with tabs_pedido[3]:
 
     df_pedidos = cargar_pedidos()
     df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
+    df_pedidos_activos['Costo Total'] = df_pedidos_activos['ID'].apply(lambda x: calcular_costo_total_pedido(x))  # type: ignore
 
     if df_pedidos_activos.empty:# type: ignore
         st.warning("❌ No hay pedidos activos para actualizar.")
@@ -216,6 +218,7 @@ with tabs_pedido[3]:
         nuevo_cliente = st.text_input("Nombre del Cliente", value=datos_pedido['Cliente'])  # type: ignore
         nuevo_telefono = st.text_input("Teléfono", value=datos_pedido['Teléfono'])  # type: ignore
         nueva_fecha = st.date_input("Fecha del Pedido", value=datos_pedido['Fecha Pedido'], format='DD/MM/YYYY')  # type: ignore
+        nuevo_costo = st.number_input('Costo Total', value=datos_pedido['Costo Total'])# type: ignore
 
         st.caption("No se permite modificar el estado del pedido desde este formulario.")
         submit = st.form_submit_button(":dart: Actualizar Pedido", type="primary", width="stretch")
@@ -229,6 +232,8 @@ with tabs_pedido[3]:
                 cambios['telefono'] = nuevo_telefono
             if nueva_fecha != datos_pedido['Fecha Pedido']:  # type: ignore
                 cambios['fecha_pedido'] = nueva_fecha
+            if nuevo_costo != datos_pedido['Costo Total']: # type: ignore
+                cambios['costo_total'] = nuevo_costo
 
             if not cambios:
                 st.info("No se detectaron cambios para actualizar.")
