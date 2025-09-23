@@ -58,8 +58,6 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
         print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
         return []
     
-from crud.pedidos import calcular_costo_total_pedido  # Importa tu función si está en otro archivo
-
 def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
     """
     Genera un nuevo pedido y descuenta materiales del stock si hay suficiente.
