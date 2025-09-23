@@ -256,7 +256,7 @@ def listar_materiales_pedido(id: int):
             return pd.DataFrame(columns=["Código", "Cantidad"])
 
         data = [
-            {"Código": m.codigo_material, "Cantidad": m.cantidad_usada, "Costo Unitario":m.costo_unitario}
+            {"Código": m.codigo_material, "Cantidad": m.cantidad_usada, "Costo Unitario": m.costo_unitario}
             for m in materiales
         ]
         return pd.DataFrame(data)
