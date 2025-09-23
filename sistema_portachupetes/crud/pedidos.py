@@ -62,6 +62,7 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
 def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
     """
     Genera un nuevo pedido y descuenta materiales del stock si hay suficiente.
+    Calcula el costo total directamente en Python.
     """
     try:
         session = Session(bind=engine)
@@ -75,33 +76,41 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
         # Crear el pedido (sin costo total aún)
         nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado)
         session.add(nuevo_pedido)
-        session.flush()  # Permite obtener el ID del pedido antes del commit
+        session.flush()  # obtener el ID
 
         # Obtener materiales y asociarlos
         materiales_usados = obtener_materiales_utilizados(materiales_portachupete)
 
+        costo_total = 0.0  # acumulador de costo
+
         for codigo, cantidad in materiales_usados:
-            material_pedido = MaterialPedido(pedido_id=nuevo_pedido.id, codigo_material=codigo.upper(), cantidad_usada=cantidad)
+            # Crear la relación pedido-material
+            material_pedido = MaterialPedido(
+                pedido_id=nuevo_pedido.id,
+                codigo_material=codigo.upper(),
+                cantidad_usada=cantidad
+            )
             session.add(material_pedido)
 
-            # Descontar del stock
+            # Descontar stock
             stock = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
             if stock:
                 stock.cantidad -= cantidad
 
-        session.flush()
+            # 🔑 Calcular costo en Python
+            mat = session.query(Material).filter(Material.codigo_material == codigo.upper()).first()
+            if mat and mat.costo_unitario is not None:
+                costo_total += mat.costo_unitario * cantidad
 
-        # Calcular costo total del pedido
-        costo_total = calcular_costo_total_pedido(nuevo_pedido.id)
-
-        # Actualizar el pedido con el costo total
-        nuevo_pedido.costo_total = costo_total
+        # Asignar costo total
+        nuevo_pedido.costo_total = float(costo_total)
 
         session.commit()
-        return f"Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
+        return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
 
     except Exception as e:
-        return f"Ocurrió un error al generar un nuevo pedido para el cliente {cliente.capitalize()}. DETALLE: {e}"
+        session.rollback()
+        return f"❌ Ocurrió un error al generar un nuevo pedido para el cliente {cliente.capitalize()}. DETALLE: {e}"
     
 def cancelar_pedido(id:int):
     '''
