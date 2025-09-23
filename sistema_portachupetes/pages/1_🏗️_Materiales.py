@@ -277,7 +277,10 @@ with tabs_materiales[4]:
     # Funcion para cargar Varios Materiales #
     def bulk_upload_materiales(df):
         try:
-            df = pd.read_excel(file)
+            df = pd.read_excel(
+                file,
+                dtype={'codigo material': str},  # fuerza texto
+                converters={'codigo material': lambda v: (str(int(v)) if isinstance(v, float) and v.is_integer() else str(v)).strip().upper()})
             
             for index, material in df.iterrows():
                 resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'], comentarios=material['comentarios'], costo_unitario=material['costo unitario'])
