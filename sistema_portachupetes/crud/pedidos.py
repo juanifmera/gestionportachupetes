@@ -88,6 +88,8 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
             if stock:
                 stock.cantidad -= cantidad
 
+        session.flush()
+
         # Calcular costo total del pedido
         costo_total = calcular_costo_total_pedido(nuevo_pedido.id)
 
