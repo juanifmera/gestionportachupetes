@@ -146,7 +146,6 @@ with tabs_pedido[1]:
 
     df_pedidos = cargar_pedidos()
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
-    #df_pedidos_filtrado['Costo Total'] = df_pedidos_filtrado['ID'].apply(lambda x: calcular_costo_total_pedido(x))#type:ignore
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
 
@@ -172,7 +171,6 @@ with tabs_pedido[2]:
 
     df_pedidos = cargar_pedidos()
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso']  #type:ignore
-    df_pedidos_filtrado['Costo Total'] = df_pedidos_filtrado['ID'].apply(lambda x: calcular_costo_total_pedido(x))#type:ignore
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
 
@@ -204,7 +202,6 @@ with tabs_pedido[3]:
 
     df_pedidos = cargar_pedidos()
     df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
-    df_pedidos_activos['Costo Total'] = df_pedidos_activos['ID'].apply(lambda x: calcular_costo_total_pedido(x))  # type: ignore
 
     if df_pedidos_activos.empty:# type: ignore
         st.warning("❌ No hay pedidos activos para actualizar.")
