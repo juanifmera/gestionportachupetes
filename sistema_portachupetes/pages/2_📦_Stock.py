@@ -34,8 +34,7 @@ with tabs_stock[0]:
     df_materiales = cargar_materiales()
     df_final = pd.merge(df_materiales, df_stock[['Código', 'Cantidad']], on='Código', how='left') #type:ignore
     df_final['Cantidad'].fillna(0, inplace=True)
-    df_stock = cargar_stock()
-    df_materiales = cargar_materiales()
+    df_final['Cantidad'] = df_final['Cantidad'].astype(int)
 
     # Aplicar estilo fila completa cuando la cantidad es 0
     def resaltar_fila(row):
