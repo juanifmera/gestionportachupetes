@@ -57,7 +57,7 @@ with tabs_stock[0]:
             opciones = []
             for cod in df_materiales['Código']:
                 if cod in sin_stock:
-                    opciones.append(f"⚠️{cod} (Sin stock)")
+                    opciones.append(f"⚠️{cod}")
                 else:
                     opciones.append(cod)
 
@@ -66,7 +66,7 @@ with tabs_stock[0]:
                 sorted(opciones)
             )
             # Limpiar el código (en caso de tener ⚠️)
-            codigo_material = codigo_material.split()[0]
+            codigo_material = codigo_material.split('⚠️')[1]
 
         with col2:
             cantidad = st.number_input('Cantidad a ingresar:', min_value=1, step=1)
