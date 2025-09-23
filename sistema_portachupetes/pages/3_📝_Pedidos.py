@@ -331,11 +331,21 @@ with tabs_pedido[5]:
                     df_final['Costo Total'] = df_final['Cantidad'] * df_final['Costo Unitario']
                     df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario", 'Costo Total']]
                     st.dataframe(df_final, width='stretch')
-                    st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido. Costo total del Portachupetes: {int(datos['Costo Total'])}")
-                    if len(df_final[df_final['Categoría'] == 'Letra']) > 5:
-                        st.warning(f'Este pedido contiene **{len(df_final[df_final['Categoría'] == 'Letra']) - 5}** Letras  adicionales. El cargo extra es de {len((df_final[df_final['Categoría'] == 'Letra'] - 5) * 500)}')
-                    st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275%: **{int(datos['Costo Total'] * 2.75)}$**')
-                    
+
+                    st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido. "
+                            f"Costo total del Portachupetes: {int(datos['Costo Total'])}")
+
+                    # 🔑 Validar letras extra
+                    cantidad_letras = len(df_final[df_final['Categoría'] == 'Letra'])
+                    if cantidad_letras > 5:
+                        extras = cantidad_letras - 5
+                        cargo_extra = extras * 500
+                        st.warning(f'Este pedido contiene **{extras}** letra(s) adicionales. '
+                                f'El cargo extra es de **${cargo_extra}**.')
+
+                    st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275%: '
+                            f'**{int(datos["Costo Total"] * 2.75)}$**')
+
                 else:
                     st.warning("⚠️ No se encontraron materiales asociados a este pedido.")
             else:
