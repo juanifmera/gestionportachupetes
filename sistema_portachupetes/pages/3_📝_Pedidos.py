@@ -337,7 +337,7 @@ with tabs_pedido[5]:
                     costo_total = df_final["Costo Total"].sum()
                     st.dataframe(df_final, width='stretch')
                     st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido. Costo total del Portachupetes: {costo_total}")
-                    st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275%: **{int(costo_total * 2.75)}$**')
+                    st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275%: **{int(costo_total * 2.75):.}$**')
                     
                 else:
                     st.warning("⚠️ No se encontraron materiales asociados a este pedido.")
