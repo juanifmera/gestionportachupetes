@@ -58,6 +58,8 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
         print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
         return []
     
+from crud.pedidos import calcular_costo_total_pedido  # Importa tu función si está en otro archivo
+
 def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
     """
     Genera un nuevo pedido y descuenta materiales del stock si hay suficiente.
@@ -71,7 +73,7 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
         if not result["success"]:
             return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
 
-        # Crear el pedido
+        # Crear el pedido (sin costo total aún)
         nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado)
         session.add(nuevo_pedido)
         session.flush()  # Permite obtener el ID del pedido antes del commit
@@ -85,15 +87,17 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
 
             # Descontar del stock
             stock = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
-
             if stock:
                 stock.cantidad -= cantidad
 
+        # Calcular costo total del pedido
         costo_total = calcular_costo_total_pedido(nuevo_pedido.id)
+
+        # Actualizar el pedido con el costo total
         nuevo_pedido.costo_total = costo_total
 
         session.commit()
-        return f"Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id})"
+        return f"Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
 
     except Exception as e:
         return f"Ocurrió un error al generar un nuevo pedido para el cliente {cliente.capitalize()}. DETALLE: {e}"
