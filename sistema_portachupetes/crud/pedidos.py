@@ -60,57 +60,51 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
         return []
     
 def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
-    """
-    Genera un nuevo pedido y descuenta materiales del stock si hay suficiente.
-    Calcula el costo total directamente en Python.
-    """
     try:
         session = Session(bind=engine)
 
-        # Verificar si se puede confeccionar
+        # Verificar stock
         result = verificar_confeccion_portachupetes(materiales_portachupete)
-
         if not result["success"]:
             return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
 
-        # Crear el pedido (sin costo total aún)
+        # Crear pedido
         nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado)
         session.add(nuevo_pedido)
-        session.flush()  # obtener el ID
+        session.flush()  # obtener ID
+        session.refresh(nuevo_pedido)  # 🔑 sincronizar objeto
 
-        # Obtener materiales y asociarlos
+        # Obtener materiales usados
         materiales_usados = obtener_materiales_utilizados(materiales_portachupete)
 
-        costo_total = 0.0  # acumulador de costo
+        costo_total = 0.0
 
         for codigo, cantidad in materiales_usados:
-            # Crear la relación pedido-material
-            material_pedido = MaterialPedido(
+            session.add(MaterialPedido(
                 pedido_id=nuevo_pedido.id,
                 codigo_material=codigo.upper(),
                 cantidad_usada=cantidad
-            )
-            session.add(material_pedido)
+            ))
 
-            # Descontar stock
             stock = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
             if stock:
                 stock.cantidad -= cantidad
 
-            # 🔑 Calcular costo en Python
             mat = session.query(Material).filter(Material.codigo_material == codigo.upper()).first()
             if mat and mat.costo_unitario is not None:
                 costo_total += mat.costo_unitario * cantidad
 
-        # Asignar costo total
+        # Asignar costo y forzar update
         nuevo_pedido.costo_total = float(costo_total)
+        session.add(nuevo_pedido)  # 🔑 asegurar que se persista
+        print(f"[DEBUG] Pedido {nuevo_pedido.id} → costo_total={nuevo_pedido.costo_total}")
 
         session.commit()
         return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
 
     except Exception as e:
         session.rollback()
-        return f"❌ Ocurrió un error al generar un nuevo pedido para el cliente {cliente.capitalize()}. DETALLE: {e}"
+        return f"❌ Error al generar pedido: {e}"
     
 def cancelar_pedido(id:int):
     '''
