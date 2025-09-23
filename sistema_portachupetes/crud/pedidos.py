@@ -193,14 +193,13 @@ def modificar_pedido(id: int, columna: str, valor):
                 valor = float(valor)
             except:
                 return "⚠️ El valor ingresado para el costo no es válido (debe ser numérico)"
-
-        session.query(Pedido).filter(Pedido.id == id).update({columna_attr: valor})
+            
+        pedido.columna_attr = valor
         session.commit()
         return f'Pedido con ID {id} modificado correctamente. El nuevo valor para el campo \"{columna}\" es \"{valor}\"'
 
     except Exception as e:
         return f'Ocurrió un problema al modificar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
-
 
 def listar_todos_pedidos():
     '''
@@ -335,8 +334,6 @@ def listar_materiales_pedido_completo():
 
     except Exception as e:
         return f"❌ Error al listar materiales usados: {e}"
-
-from sqlalchemy import func, select
 
 def calcular_costo_total_pedido(pedido_id: int) -> int:
     """
