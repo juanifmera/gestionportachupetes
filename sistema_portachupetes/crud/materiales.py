@@ -91,6 +91,7 @@ def listar_todos_materiales():
                 "Costo Unitario": m.costo_unitario,
                 "Comentarios": m.comentarios
             }
+            
             for m in materiales
         ]
 
