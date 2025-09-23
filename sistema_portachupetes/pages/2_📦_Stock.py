@@ -57,7 +57,7 @@ with tabs_stock[0]:
             opciones = []
             for cod in df_materiales['Código']:
                 if cod in sin_stock:
-                    opciones.append(f"⚠️ {cod} (Sin stock)")
+                    opciones.append(f"⚠️{cod} (Sin stock)")
                 else:
                     opciones.append(cod)
 
@@ -75,6 +75,9 @@ with tabs_stock[0]:
             fecha_ingreso = st.date_input('Fecha de ingreso:', value=datetime.today(), format='DD/MM/YYYY')
 
         submit = st.form_submit_button('Agregar Stock', icon='🚨', type='primary', use_container_width=True)
+        
+        st.success('Estos Materiales si tienen Stock:')
+        st.dataframe(df_stock)
 
         if submit:
             if not codigo_material or not cantidad:
