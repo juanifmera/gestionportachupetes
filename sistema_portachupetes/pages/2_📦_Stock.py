@@ -262,6 +262,7 @@ with tabs_stock[4]:
     def bulk_upload_stock(df):
         try:
             df = pd.read_excel(file)
+            df['codigo material'] = df['codigo material'].astype(str)
 
             for index, item in df.iterrows():
                 resultado = agregar_stock(codigo_material=item['codigo material'], cantidad=item['cantidad'])
