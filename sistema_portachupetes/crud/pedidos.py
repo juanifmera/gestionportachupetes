@@ -163,7 +163,7 @@ def terminar_pedido(id:int):
     except Exception as e:
         return f'Ocurrio un problema a la hora de Cancelar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
 
-def modificar_pedido(id: int, columna: str, valor: str):
+def modificar_pedido(id: int, columna: str, valor):
     '''
     Función para modificar detalles menores del pedido
     '''
@@ -179,19 +179,28 @@ def modificar_pedido(id: int, columna: str, valor: str):
         if columna == 'estado':
             return 'No se puede cambiar el Estado de un Pedido mediante esta función'
 
-        if pedido.estado in estados_prohibidos:  # type: ignore
+        if pedido.estado in estados_prohibidos:
             return f'No se pueden modificar pedidos en estado {pedido.estado}'
 
         if not hasattr(Pedido, columna):
-            return f'La columna "{columna}" no existe en el modelo Pedido'
-        
+            return f'La columna \"{columna}\" no existe en el modelo Pedido'
+
         columna_attr = getattr(Pedido, columna)
+
+        # 🧠 Cast específico para costo_total
+        if columna == "costo_total":
+            try:
+                valor = float(valor)
+            except:
+                return "⚠️ El valor ingresado para el costo no es válido (debe ser numérico)"
+
         session.query(Pedido).filter(Pedido.id == id).update({columna_attr: valor})
         session.commit()
-        return f'Pedido con ID {id} modificado correctamente. El nuevo valor para el campo "{columna}" es "{valor}"'
+        return f'Pedido con ID {id} modificado correctamente. El nuevo valor para el campo \"{columna}\" es \"{valor}\"'
 
     except Exception as e:
         return f'Ocurrió un problema al modificar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
+
 
 def listar_todos_pedidos():
     '''

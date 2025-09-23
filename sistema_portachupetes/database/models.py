@@ -1,5 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase, relationship, mapped_column, Mapped
-from sqlalchemy import Integer, String, ForeignKey, DateTime
+from sqlalchemy import Integer, String, ForeignKey, DateTime, Float
 from typing import Optional, List
 from datetime import datetime
 
@@ -42,7 +42,7 @@ class Pedido(Base):
     telefono:Mapped[str] = mapped_column(String, nullable=True, default='')
     fecha_pedido:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
     estado:Mapped[str] = mapped_column(String, nullable=False, default='En Proceso')
-    costo_total:Mapped[int] = mapped_column(Integer, nullable=True)
+    costo_total:Mapped[float] = mapped_column(Float, nullable=True)
 
     materiales = relationship('MaterialPedido', back_populates='pedido', cascade='all, delete-orphan')
 
