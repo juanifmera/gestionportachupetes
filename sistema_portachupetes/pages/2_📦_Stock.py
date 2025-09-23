@@ -38,7 +38,11 @@ with tabs_stock[0]:
 
     # Aplicar estilo fila completa cuando la cantidad es 0
     def resaltar_fila(row):
-        return ['background-color: #ffcccc' if row['Cantidad'] == 0 else '' for _ in row]
+        if row['Cantidad'] == 0:
+            return ['background-color: rgba(178, 34, 34, 0.6); color: black;' for _ in row]  
+            # rojo oscuro (firebrick) con 60% opacidad + texto negro
+        else:
+            return ['' for _ in row]
 
     # Mostrar
     st.dataframe(df_final.style.apply(resaltar_fila, axis=1))
