@@ -122,6 +122,8 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
             extras = letras_procesadas - 5
             mensaje = f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total)}. Se aplico un cargo adicional de {extras} letra(s) por  ${cargo_extra_letra}."
 
+            return mensaje
+
         return mensaje
 
     except Exception as e:
