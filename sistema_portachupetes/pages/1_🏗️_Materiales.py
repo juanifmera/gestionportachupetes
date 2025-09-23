@@ -84,6 +84,7 @@ with tabs_materiales[1]:
     col1, col2, col3, col4 = st.columns(4)
 
     df_original = cargar_materiales()
+    df_original['Fecha Ingreso'] = df_original['Fecha Ingreso'].strftime('%d/%m/%Y')
 
     with col1:
         filtro_categoria = st.selectbox('Filtrar por Categoría', ['Todas'] + sorted(df_original['Categoría'].unique())) # type: ignore
