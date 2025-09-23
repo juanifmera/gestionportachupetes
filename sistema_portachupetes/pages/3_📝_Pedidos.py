@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime, timedelta
-from crud.pedidos import crear_pedido, listar_todos_pedidos, modificar_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido, calcular_costo_total_pedido
+from crud.pedidos import crear_pedido, listar_todos_pedidos, actualizar_varios_campos_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido, calcular_costo_total_pedido
 from crud.stock import listar_stock
 from crud.materiales import listar_todos_materiales
 import pandas as pd
@@ -239,16 +239,12 @@ with tabs_pedido[3]:
                 st.info("No se detectaron cambios para actualizar.")
                 st.stop()
 
-            errores = []
-            for campo, valor in cambios.items():
-                resultado = modificar_pedido(int(id_pedido), campo, valor)  # type: ignore
-                if resultado.startswith("Pedido con ID"):
-                    mostrar_exito_y_reiniciar(resultado)
-                else:
-                    errores.append(resultado)
+            resultado = actualizar_varios_campos_pedido(int(id_pedido), cambios)  # NUEVA FUNCION
 
-            if errores:
-                st.error("\n".join(errores))
+            if resultado.startswith("✅"):
+                mostrar_exito_y_reiniciar(resultado)
+            else:
+                st.error(resultado)
 
 ## LISTAR PEDIDOS ##
 with tabs_pedido[4]:

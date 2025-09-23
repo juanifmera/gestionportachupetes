@@ -355,3 +355,46 @@ def calcular_costo_total_pedido(pedido_id: int) -> int:
     except Exception as e:
         print(f"❌ Error al calcular el costo del pedido {pedido_id}: {e}")
         return 0
+
+def actualizar_varios_campos_pedido(id: int, cambios: dict) -> str:
+    """
+    Permite modificar múltiples campos de un pedido activo (no cancelado ni terminado).
+    """
+    try:
+        session = Session(bind=engine)
+        pedido = session.query(Pedido).filter(Pedido.id == id).first()
+
+        if not pedido:
+            return f"❌ No se encontró ningún pedido con ID {id}"
+
+        if pedido.estado in ["Cancelado", "Terminado"]:
+            return f"⚠️ No se pueden modificar pedidos en estado {pedido.estado}"
+
+        errores = []
+
+        for campo, valor in cambios.items():
+            if campo == "estado":
+                errores.append("No se puede cambiar el estado del pedido mediante esta función.")
+                continue
+
+            if hasattr(pedido, campo):
+                # Cast para campos específicos
+                if campo == "costo_total":
+                    try:
+                        valor = float(valor)
+                    except:
+                        errores.append(f"⚠️ El valor de '{campo}' debe ser numérico.")
+                        continue
+
+                setattr(pedido, campo, valor)
+            else:
+                errores.append(f"⚠️ La columna '{campo}' no existe en el modelo Pedido.")
+
+        if errores:
+            return "\n".join(errores)
+
+        session.commit()
+        return f"✅ Pedido con ID {id} actualizado correctamente."
+
+    except Exception as e:
+        return f"❌ Ocurrió un problema al actualizar el Pedido con ID {id}. Detalle: {e}"
