@@ -114,11 +114,6 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
         session.add(nuevo_pedido)
         session.commit()
 
-        # Mensaje extra si hubo letras adicionales
-        if letras_procesadas > 5:
-            extras = letras_procesadas - 5
-            return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total)}. Se aplico un cargo adicional de {extras} letra(s) por  ${cargo_extra_letra}."
-
         return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
 
     except Exception as e:

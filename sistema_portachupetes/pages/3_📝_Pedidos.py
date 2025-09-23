@@ -308,7 +308,7 @@ with tabs_pedido[5]:
                 **📞 Teléfono:** {datos['Teléfono'] if datos['Teléfono'] else ':red[Falta Dato]'}  
                 **📅 Fecha del Pedido:** {datos['Fecha Pedido'].strftime('%d/%m/%Y')}  
                 **📦 Estado:** {datos['Estado']}  
-                **💵 Costo:** {datos['Costo Total']}
+                **💵 Costo:** {int(datos['Costo Total'])}
                 """)
 
                 st.divider()
