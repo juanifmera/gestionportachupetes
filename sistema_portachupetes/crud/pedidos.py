@@ -317,22 +317,25 @@ def listar_materiales_pedido_completo():
     except Exception as e:
         return f"❌ Error al listar materiales usados: {e}"
 
-def calcular_costo_total_pedido(pedido_id: int) -> float | str:
+from sqlalchemy import func, select
+
+def calcular_costo_total_pedido(pedido_id: int) -> float:
     """
     Calcula el costo total de un pedido sumando (costo_unitario * cantidad_usada)
     """
     try:
         session = Session(bind=engine)
 
-        # Join entre Material y MaterialPedido
-        total = (
-            session.query(func.sum(Material.costo_unitario * MaterialPedido.cantidad_usada))
-            .join(Material, Material.codigo_material == MaterialPedido.codigo_material)
-            .filter(MaterialPedido.pedido_id == pedido_id)
-            .scalar()
-        )
+        total = session.query(
+            func.sum(Material.costo_unitario * MaterialPedido.cantidad_usada)
+        ).select_from(MaterialPedido).join(
+            Material, Material.codigo_material == MaterialPedido.codigo_material
+        ).filter(
+            MaterialPedido.pedido_id == pedido_id
+        ).scalar()
 
         return total or 0
 
     except Exception as e:
-        return f"❌ Error al calcular el costo del pedido {pedido_id}: {e}"
+        print(f"❌ Error al calcular el costo del pedido {pedido_id}: {e}")
+        return 0
