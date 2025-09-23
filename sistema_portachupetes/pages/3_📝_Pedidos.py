@@ -311,7 +311,7 @@ with tabs_pedido[5]:
                 **👤 Cliente:** {datos['Cliente'].capitalize()}  
                 **📞 Teléfono:** {datos['Teléfono'] if datos['Teléfono'] else ':red[Falta Dato]'}  
                 **📅 Fecha del Pedido:** {datos['Fecha Pedido'].strftime('%d/%m/%Y')}  
-                **📦 Estado:** {datos['Estado']}
+                **📦 Estado:** {datos['Estado']}  
                 **💵 Costo:** {datos['Costo Total']}
                 """)
 
@@ -331,7 +331,8 @@ with tabs_pedido[5]:
                     df_final = pd.merge(df_materiales, df_info, on="Código", how="left") #type:ignore
 
                     # Ordenar columnas
-                    df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario_x"]]
+                    df_final.rename(columns={'Costo Unitario_x':'Costo Unitario'}, inplace=True)
+                    df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario"]]
                     st.dataframe(df_final, width='stretch')
                     st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido.")
                     

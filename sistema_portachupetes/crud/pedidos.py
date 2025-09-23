@@ -247,9 +247,10 @@ def obtener_pedido(id: int):
 def listar_materiales_pedido(id: int):
     try:
         session = Session(bind=engine)
+
+        #Genero un Join pata traerme el detalle del material utilizado con su costo unitario
         stm = select(MaterialPedido.codigo_material, MaterialPedido.cantidad_usada, Material.costo_unitario).join(Material, MaterialPedido.codigo_material == Material.codigo_material)
         materiales = session.execute(stm).all()
-        #materiales = session.query(MaterialPedido).filter(MaterialPedido.pedido_id == id).all()
 
         # Siempre devolver un DataFrame, incluso vacío
         if not materiales:
