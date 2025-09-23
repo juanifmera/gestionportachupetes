@@ -150,7 +150,7 @@ def listar_stock():
                 "Categoría": s.material.categoria,
                 "Subcategoría": s.material.subcategoria,
                 "Cantidad": s.cantidad,
-                "Última Modificación": datetime.date(s.fecha_modificacion)#type: ignore
+                "Última Modificación": datetime.date(s.fecha_modificacion).strftime('%d/%m/%Y')#type: ignore
             }
             for s in results
         ]
