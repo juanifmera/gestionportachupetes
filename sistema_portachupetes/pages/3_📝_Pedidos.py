@@ -331,7 +331,7 @@ with tabs_pedido[5]:
                     df_final = pd.merge(df_materiales, df_info, on="Código", how="left") #type:ignore
 
                     # Ordenar columnas
-                    #df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad"]]
+                    df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario_x"]]
                     st.dataframe(df_final, width='stretch')
                     st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido.")
                     
