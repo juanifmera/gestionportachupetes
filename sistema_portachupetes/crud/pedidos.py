@@ -217,7 +217,7 @@ def listar_todos_pedidos():
                 "ID": pedido.id,
                 "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
                 "Telefono": getattr(pedido, "telefono", None),
-                "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
+                "Fecha Creación": datetime.date(pedido.fecha_pedido).strftime('%d/%m/%Y'), # type: ignore
                 "Estado": pedido.estado,
                 "Costo Total": pedido.costo_total
             }
