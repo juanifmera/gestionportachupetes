@@ -159,7 +159,7 @@ with tabs_materiales[2]:
         with col2:
             subcategoria = st.radio("Subcategoría", ["Normal", "Especial"], horizontal=True, index=["Normal", "Especial"].index(material["Subcategoría"]))# type: ignore
             comentarios = st.text_area("Comentarios", value=material["Comentarios"])# type: ignore
-            costo_unitario = st.number_input('Costo Unitario', value=material['Costo Unitario'] or 0)
+            costo_unitario = st.number_input('Costo Unitario', value=material['Costo Unitario'] or 0)# type: ignore
 
         submit = st.form_submit_button(":zap: Actualizar Material", type="primary", width='stretch')
 
@@ -173,7 +173,7 @@ with tabs_materiales[2]:
                 cambios["categoria"] = categoria
             if subcategoria != material["Subcategoría"]:# type: ignore
                 cambios["subcategoria"] = subcategoria
-            if costo_unitario != material['Costo Unitario']:
+            if costo_unitario != material['Costo Unitario']:# type: ignore
                 cambios['costo_unitario'] = costo_unitario
             if comentarios != material["Comentarios"]:# type: ignore
                 cambios["comentarios"] = comentarios
