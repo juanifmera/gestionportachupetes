@@ -43,6 +43,7 @@ class Pedido(Base):
     fecha_pedido:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
     costo_total:Mapped[int] = mapped_column(Integer, nullable=False)
     estado:Mapped[str] = mapped_column(String, nullable=False, default='En Proceso')
+    costo_total:Mapped[int] = mapped_column(Integer, nullable=True)
 
     materiales = relationship('MaterialPedido', back_populates='pedido', cascade='all, delete-orphan')
 

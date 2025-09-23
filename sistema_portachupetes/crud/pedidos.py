@@ -319,7 +319,7 @@ def listar_materiales_pedido_completo():
 
 from sqlalchemy import func, select
 
-def calcular_costo_total_pedido(pedido_id: int) -> float:
+def calcular_costo_total_pedido(pedido_id: int) -> int:
     """
     Calcula el costo total de un pedido sumando (costo_unitario * cantidad_usada)
     """
@@ -334,7 +334,7 @@ def calcular_costo_total_pedido(pedido_id: int) -> float:
             MaterialPedido.pedido_id == pedido_id
         ).scalar()
 
-        return total or 0
+        return int(total) or 0
 
     except Exception as e:
         print(f"❌ Error al calcular el costo del pedido {pedido_id}: {e}")
