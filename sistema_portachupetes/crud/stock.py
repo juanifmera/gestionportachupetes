@@ -66,7 +66,7 @@ def agregar_stock(codigo_material: str, cantidad: int, fecha_modificacion=dateti
             return f'⚠️ No existe material en la tabla Materiales con código {codigo_material.upper()}'
 
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de generar una nueva entrada de Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "agregar_stock". DETALLE: {e}')
+        return f'❌ Ocurrio un error a la hora de generar una nueva entrada de Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "agregar_stock". DETALLE: {e}'
 
 #Eliminar Stock
 def eliminar_stock(codigo_material: str):
