@@ -10,7 +10,7 @@ class Material(Base):
     __tablename__ = 'materiales'
 
     codigo_material:Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
-    descripcion:Mapped[str] = mapped_column(String(50), nullable=False)
+    descripcion:Mapped[str] = mapped_column(String(100), nullable=False)
     color:Mapped[str] = mapped_column(String, nullable=False)
     categoria:Mapped[str] = mapped_column(String, nullable=False)
     subcategoria:Mapped[str] = mapped_column(String, nullable=False)
