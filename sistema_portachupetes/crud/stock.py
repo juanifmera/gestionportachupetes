@@ -7,7 +7,7 @@ from crud.materiales import validar_material
 import pandas as pd
 
 #Validar Lineas de Stock
-def validar_stock(codigo_material: str) -> bool:
+def validar_stock(codigo_material: str) -> bool: 
     """
     Verifica si existe una línea de Stock para un material dado
     """
@@ -182,12 +182,12 @@ def obtener_stock(codigo_material: str):
     except Exception as e:
         return f'❌ Error al obtener stock de {codigo_material.upper()}: {e}'
     
-def agregar_stock_bulk(session, codigo_material: str, cantidad: int, fecha_modificacion=datetime.today()):
+def agregar_stock_bulk(session: Session, codigo_material: str, cantidad: int, fecha_modificacion=datetime.today()):
     """
-    Variante de agregar_stock que usa una sesión existente.
+    Variante de agregar_stock optimizada para bulk (usa sesión compartida).
     """
     try:
-        if validar_material(codigo_material) and not validar_stock(codigo_material) and cantidad > 0:
+        if validar_material_with_session(session, codigo_material) and not validar_stock_with_session(session, codigo_material) and cantidad > 0:
             nueva_entrada = Stock(
                 codigo_material=codigo_material.upper(),
                 cantidad=cantidad,
@@ -196,8 +196,7 @@ def agregar_stock_bulk(session, codigo_material: str, cantidad: int, fecha_modif
             session.add(nueva_entrada)
             return f'✅ Nuevo stock creado. Material: {codigo_material.upper()} / Cantidad: {cantidad}'
 
-        elif validar_material(codigo_material) and validar_stock(codigo_material):
-            # importante: pasar la misma sesión a la función interna
+        elif validar_material_with_session(session, codigo_material) and validar_stock_with_session(session, codigo_material):
             return _incrementar_stock(session, codigo_material, cantidad)
 
         else:
@@ -205,3 +204,22 @@ def agregar_stock_bulk(session, codigo_material: str, cantidad: int, fecha_modif
 
     except Exception as e:
         return f'❌ Error en agregar_stock_bulk para {codigo_material.upper()}: {e}'
+
+    
+# Validar stock usando una sesión existente
+def validar_stock_with_session(session: Session, codigo_material: str) -> bool:
+    """
+    Verifica si existe una línea de Stock para un material dado (usando sesión existente)
+    """
+    result = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
+    return bool(result)
+
+
+# Validar material usando una sesión existente
+def validar_material_with_session(session: Session, codigo_material: str) -> bool:
+    """
+    Verifica si existe un Material dado (usando sesión existente)
+    """
+    result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
+    return bool(result)
+

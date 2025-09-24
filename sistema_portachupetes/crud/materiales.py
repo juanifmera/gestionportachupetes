@@ -166,7 +166,6 @@ def validar_material(codigo_material: str) -> bool:
         
     except Exception as e:
         return(f'❌ Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}') # type: ignore
-        return False
 
 # Obtener material puntual
 def obtener_material(codigo_material: str):
