@@ -5,29 +5,45 @@ from database.engine import engine
 from datetime import datetime
 
 #Agrego Material
-def agregar_material(codigo_material:str, descripcion:str, color:str, categoria:str, subcategoria:str, costo_unitario:int, comentarios='', fecha_ingreso=datetime.today()) -> str:
-    '''
-    Funcion para agregar un nuevo Material a la Tabla Materiales
-    '''
-    
+def agregar_material(codigo_material:str, descripcion:str, color:str,
+                     categoria:str, subcategoria:str, costo_unitario:int,
+                     comentarios=None, fecha_ingreso=datetime.today()) -> str:
     try:
         session = Session(bind=engine)
-        
-        # Valido si el material ya existe en la lista de materiales por su Codigo (Primary Key)
-        nuevo_material = Material(codigo_material=codigo_material.upper(), descripcion=descripcion.capitalize(), color=color.capitalize(), categoria=categoria, subcategoria=subcategoria.capitalize(), fecha_ingreso=fecha_ingreso, comentarios=comentarios.capitalize(), costo_unitario=int(costo_unitario))
 
-        result = session.query(Material).filter(Material.codigo_material == nuevo_material.codigo_material).first()
+        # Normalizo campos para evitar errores con NaN o None
+        desc = '' if descripcion is None or pd.isna(descripcion) else str(descripcion).strip().capitalize()
+        col  = '' if color is None or pd.isna(color) else str(color).strip().capitalize()
+        cat  = '' if categoria is None or pd.isna(categoria) else str(categoria).strip().capitalize()
+        subc = '' if subcategoria is None or pd.isna(subcategoria) else str(subcategoria).strip().capitalize()
+        com  = '' if comentarios is None or pd.isna(comentarios) else str(comentarios).strip().capitalize()
+        cod  = str(codigo_material).strip().upper()
+        cu   = int(costo_unitario) if costo_unitario is not None else 0
 
+        nuevo_material = Material(
+            codigo_material=cod,
+            descripcion=desc,
+            color=col,
+            categoria=cat,
+            subcategoria=subc,
+            fecha_ingreso=fecha_ingreso,
+            comentarios=com,
+            costo_unitario=cu
+        )
+
+        # Validar duplicado
+        result = session.query(Material).filter(Material.codigo_material == cod).first()
         if result:
-            return f'⚠️ Ya existe el material {result.codigo_material} en la lista de Materiales. Detalle del material: {result.descripcion}. Porfavor verificar esta informacion y actualizar de forma correspondiente'
+            return f'⚠️ Ya existe el material {result.codigo_material} en la lista. Detalle: {result.descripcion}'
 
         session.add(nuevo_material)
         session.commit()
 
-        return f'✅ Nuevo material "{nuevo_material.descripcion}" con código {nuevo_material.codigo_material} agregado con éxito el {fecha_ingreso.strftime('%d/%m/%Y')}'
+        return f'✅ Nuevo material "{desc}" con código {cod} agregado con éxito el {fecha_ingreso.strftime("%d/%m/%Y")}'
 
     except Exception as e:
-        return(f'❌ Ocurrio un error a la hora de generar un nuevo Material. Archivo --> CRUD - Material - Funcion "agregar_material". DETALLE: {e}')
+        session.rollback()
+        return f'❌ Error en agregar_material. DETALLE: {e}'
 
 #Actualizar Material
 def actualizar_material(codigo_material: str, columna: str, nuevo_valor):
