@@ -267,20 +267,32 @@ with tabs_stock[4]:
 
             with Session(engine) as session:
                 resultados = []
+                contador = 0  # Para llevar la cuenta de los registros procesados
+
                 for index, item in df.iterrows():
                     resultado = agregar_stock_bulk(session, item['codigo material'], item['cantidad'])
                     resultados.append(resultado)
 
+                    # Mostrar en pantalla
                     if resultado.startswith('✅'): #type:ignore
                         st.success(resultado)
                     elif resultado.startswith('⚠️'): #type:ignore
                         st.warning(resultado)
                     else:
                         st.error(resultado)
-                # Commit una sola vez
-                session.commit()
 
-            return "✔️ Carga masiva de stock finalizada correctamente."
+                    contador += 1
+
+                    # Cada 5 registros -> commit
+                    if contador % 5 == 0:
+                        session.commit()
+                        st.info(f"💾 Guardados {contador} registros hasta ahora.")
+
+                # Commit final para los que queden pendientes
+                session.commit()
+                st.success("✔️ Carga masiva de stock finalizada correctamente.")
+
+            return resultados
 
         except Exception as e:
             return f'❌ Error en el Bulk Request de Stock. Detalle: {e}'
