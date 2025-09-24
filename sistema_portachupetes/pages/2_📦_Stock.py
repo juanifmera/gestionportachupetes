@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime, timedelta
-from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_stock, obtener_stock
+from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_stock, obtener_stock, agregar_stock_bulk
 from crud.materiales import listar_todos_materiales
 import pandas as pd
 from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
@@ -260,27 +260,27 @@ with tabs_stock[4]:
 
     submit = st.button('📦 Subir Bulk Request de Stock', type='primary', width='stretch')
 
-    # Función para cargar múltiples registros de stock
     def bulk_upload_stock(df):
         try:
+            df = pd.read_excel(file)
+            df['codigo material'] = df['codigo material'].astype(str)
+
             with Session(engine) as session:
-                df = pd.read_excel(file)
-                df['codigo material'] = df['codigo material'].astype(str)
-
+                resultados = []
                 for index, item in df.iterrows():
-                    resultado = agregar_stock(codigo_material=item['codigo material'], cantidad=item['cantidad'])
+                    resultado = agregar_stock_bulk(session, item['codigo material'], item['cantidad'])
+                    resultados.append(resultado)
 
-                    with st.spinner('Agregando Stock...'):
-                        if resultado.startswith('✅'): #type:ignore
-                            st.success(resultado)
+                    if resultado.startswith('✅'): #type:ignore
+                        st.success(resultado)
+                    elif resultado.startswith('⚠️'): #type:ignore
+                        st.warning(resultado)
+                    else:
+                        st.error(resultado)
+                # Commit una sola vez
+                session.commit()
 
-                        elif resultado.startswith('⚠️'): #type:ignore
-                            st.warning(resultado)
-
-                        else:
-                            st.error(resultado)
-
-                return "✔️ Carga masiva de stock finalizada correctamente."
+            return "✔️ Carga masiva de stock finalizada correctamente."
 
         except Exception as e:
             return f'❌ Error en el Bulk Request de Stock. Detalle: {e}'

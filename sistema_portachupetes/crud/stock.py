@@ -181,3 +181,27 @@ def obtener_stock(codigo_material: str):
 
     except Exception as e:
         return f'❌ Error al obtener stock de {codigo_material.upper()}: {e}'
+    
+def agregar_stock_bulk(session, codigo_material: str, cantidad: int, fecha_modificacion=datetime.today()):
+    """
+    Variante de agregar_stock que usa una sesión existente.
+    """
+    try:
+        if validar_material(codigo_material) and not validar_stock(codigo_material) and cantidad > 0:
+            nueva_entrada = Stock(
+                codigo_material=codigo_material.upper(),
+                cantidad=cantidad,
+                fecha_modificacion=fecha_modificacion
+            )
+            session.add(nueva_entrada)
+            return f'✅ Nuevo stock creado. Material: {codigo_material.upper()} / Cantidad: {cantidad}'
+
+        elif validar_material(codigo_material) and validar_stock(codigo_material):
+            # importante: pasar la misma sesión a la función interna
+            return _incrementar_stock(session, codigo_material, cantidad)
+
+        else:
+            return f'⚠️ No existe material en la tabla Materiales con código {codigo_material.upper()}'
+
+    except Exception as e:
+        return f'❌ Error en agregar_stock_bulk para {codigo_material.upper()}: {e}'
