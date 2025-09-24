@@ -29,7 +29,7 @@ def incrementar_stock(codigo_material: str, cantidad: int):
             return result
 
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de incrementar el Stock del siguiente Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "incrementar_stock". DETALLE: {e}')
+        return f'❌ Ocurrio un error a la hora de incrementar el Stock del siguiente Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "incrementar_stock". DETALLE: {e}'
 
 #Incrementar Stock -> Interna
 def _incrementar_stock(session, codigo_material: str, cantidad: int) -> bool:
@@ -43,30 +43,27 @@ def _incrementar_stock(session, codigo_material: str, cantidad: int) -> bool:
 
 #Agregar Stock
 def agregar_stock(codigo_material: str, cantidad: int, fecha_modificacion=datetime.today()):
-    """
-    Agrega una nueva entrada de stock o incrementa si ya existe
-    """
     try:
-        session = Session(bind=engine)
+        with Session(engine) as session:
+            if validar_material(codigo_material) and not validar_stock(codigo_material) and cantidad > 0:
+                nueva_entrada = Stock(
+                    codigo_material=codigo_material.upper(),
+                    cantidad=cantidad,
+                    fecha_modificacion=fecha_modificacion
+                )
+                session.add(nueva_entrada)
+                session.commit()
+                return f'✅ Nuevo stock creado. Material: {codigo_material.upper()} / Cantidad: {cantidad}'
 
-        if validar_material(codigo_material) and not validar_stock(codigo_material) and cantidad > 0:
-            nueva_entrada = Stock(
-                codigo_material=codigo_material.upper(),
-                cantidad=cantidad,
-                fecha_modificacion=fecha_modificacion
-            )
-            session.add(nueva_entrada)
-            session.commit()
-            return f'✅ Nuevo stock creado. Material: {codigo_material.upper()} / Cantidad: {cantidad}'
+            elif validar_material(codigo_material) and validar_stock(codigo_material):
+                return incrementar_stock(codigo_material, cantidad)
 
-        elif validar_material(codigo_material) and validar_stock(codigo_material):
-            return incrementar_stock(codigo_material, cantidad)
-
-        else:
-            return f'⚠️ No existe material en la tabla Materiales con código {codigo_material.upper()}'
+            else:
+                return f'⚠️ No existe material en la tabla Materiales con código {codigo_material.upper()}'
 
     except Exception as e:
-        return f'❌ Ocurrio un error a la hora de generar una nueva entrada de Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "agregar_stock". DETALLE: {e}'
+        return (f'❌ Ocurrió un error al generar una nueva entrada de Stock '
+                f'para {codigo_material.upper()}. DETALLE: {e}')
 
 #Eliminar Stock
 def eliminar_stock(codigo_material: str):
@@ -85,7 +82,7 @@ def eliminar_stock(codigo_material: str):
             return f'⚠️ No se encontró stock para {codigo_material.upper()}'
         
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de Eliminar todo el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "eliminar_stock". DETALLE: {e}')
+        return f'❌ Ocurrio un error a la hora de Eliminar todo el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "eliminar_stock". DETALLE: {e}'
 
 #Actualizar Stock
 def actualizar_stock(codigo_material: str, cantidad: int):
@@ -105,7 +102,7 @@ def actualizar_stock(codigo_material: str, cantidad: int):
             return f'⚠️ No se encontró stock para {codigo_material.upper()} o el material no existe'
 
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de Actualizar el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "actualizar_stock". DETALLE: {e}')
+        return f'❌ Ocurrio un error a la hora de Actualizar el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "actualizar_stock". DETALLE: {e}'
 
 #Reducir Stock
 def reducir_stock(codigo_material:str, cantidad:int):
@@ -130,7 +127,7 @@ def reducir_stock(codigo_material:str, cantidad:int):
             return f'⚠️ No se encontró stock para {codigo_material.upper()}'
 
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de Reducir el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "reducir_stock". DETALLE: {e}')
+        return f'❌ Ocurrio un error a la hora de Reducir el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "reducir_stock". DETALLE: {e}'
 
 #Listar Stock Completo - Con Join en Material
 def listar_stock():
@@ -158,7 +155,7 @@ def listar_stock():
         return pd.DataFrame(data)
 
     except Exception as e:
-        print(f'❌ Ocurrio un error a la hora de Listar el Stock. Archivo --> CRUD - Stock - Funcion "listar_stock". DETALLE: {e}')
+        return f'❌ Ocurrio un error a la hora de Listar el Stock. Archivo --> CRUD - Stock - Funcion "listar_stock". DETALLE: {e}'
 
 # Obtener stock de un material puntual
 def obtener_stock(codigo_material: str):

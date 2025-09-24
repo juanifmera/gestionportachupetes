@@ -7,6 +7,8 @@ from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 import os
 import io
 import time
+from database.engine import engine
+from sqlalchemy.orm import Session
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -261,23 +263,24 @@ with tabs_stock[4]:
     # Función para cargar múltiples registros de stock
     def bulk_upload_stock(df):
         try:
-            df = pd.read_excel(file)
-            df['codigo material'] = df['codigo material'].astype(str)
+            with Session(engine) as session:
+                df = pd.read_excel(file)
+                df['codigo material'] = df['codigo material'].astype(str)
 
-            for index, item in df.iterrows():
-                resultado = agregar_stock(codigo_material=item['codigo material'], cantidad=item['cantidad'])
+                for index, item in df.iterrows():
+                    resultado = agregar_stock(codigo_material=item['codigo material'], cantidad=item['cantidad'])
 
-                with st.spinner('Agregando Stock...'):
-                    if resultado.startswith('✅'): #type:ignore
-                        st.success(resultado)
+                    with st.spinner('Agregando Stock...'):
+                        if resultado.startswith('✅'): #type:ignore
+                            st.success(resultado)
 
-                    elif resultado.startswith('⚠️'): #type:ignore
-                        st.warning(resultado)
+                        elif resultado.startswith('⚠️'): #type:ignore
+                            st.warning(resultado)
 
-                    else:
-                        st.error(resultado)
+                        else:
+                            st.error(resultado)
 
-            return "✔️ Carga masiva de stock finalizada correctamente."
+                return "✔️ Carga masiva de stock finalizada correctamente."
 
         except Exception as e:
             return f'❌ Error en el Bulk Request de Stock. Detalle: {e}'
