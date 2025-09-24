@@ -306,5 +306,5 @@ with tabs_stock[4]:
         st.rerun()
 
 ## PROXIMAS FEATURES ##    
-with tabs_stock[4]:
+with tabs_stock[5]:
     st.info(':warning: Mas Acciones seran Incorporadas en breve!!! (Llevar Ideas a Juan Mera)')
