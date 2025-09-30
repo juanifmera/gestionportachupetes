@@ -36,13 +36,13 @@ with tabs_pedido[0]:
     st.markdown("### 🔧 Paso 1: Configuración de materiales")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        cantidad_bolitas = st.number_input("🔵 ¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_bolitas")
+        cantidad_bolitas = st.number_input("🔵 ¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_bolitas_minorista")
     with col2:
-        cantidad_lentejas = st.number_input("🟤 ¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_lentejas")
+        cantidad_lentejas = st.number_input("🟤 ¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_lentejas_minorista")
     with col3:
-        cantidad_dijes_normales = st.number_input("✨ ¿Cuántos dijes normales vas a usar?", min_value=0, max_value=5, step=1, key="cantidad_dijes_normales")
+        cantidad_dijes_normales = st.number_input("✨ ¿Cuántos dijes normales vas a usar?", min_value=0, max_value=5, step=1, key="cantidad_dijes_normales_minorista")
     with col4:
-        cantidad_dijes_especiales = st.number_input("💎 ¿Cuántos dijes especiales vas a usar?", min_value=0, max_value=5, step=1, key="cantidad_dijes_especiales")
+        cantidad_dijes_especiales = st.number_input("💎 ¿Cuántos dijes especiales vas a usar?", min_value=0, max_value=5, step=1, key="cantidad_dijes_especiales_minorista")
 
 
     # ---------- Paso 2: Formulario principal ----------
@@ -383,17 +383,17 @@ with tabs_pedido[6]:
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-        cantidad_broches = st.number_input('🌅 Cuantos broches distintos vas a usar?', min_value=0, max_value=50, step=1, key='cantidad_broches')
+        cantidad_broches = st.number_input('🌅 Cuantos broches distintos vas a usar?', min_value=0, max_value=50, step=1, key='cantidad_broches_mayorista')
     with col2:
-        cantidad_bolitas = st.number_input("🔵 ¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_bolitas")
+        cantidad_bolitas = st.number_input("🔵 ¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_bolitas_mayorista")
     with col3:
-        cantidad_lentejas = st.number_input("🟤 ¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_lentejas")
+        cantidad_lentejas = st.number_input("🟤 ¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_lentejas_mayorista")
     with col4:
-        cantidad_dijes_normales = st.number_input("✨ ¿Cuántos dijes normales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_normales")
+        cantidad_dijes_normales = st.number_input("✨ ¿Cuántos dijes normales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_normales_mayorista")
     with col5:
-        cantidad_dijes_especiales = st.number_input("💎 ¿Cuántos dijes especiales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_especiales")
+        cantidad_dijes_especiales = st.number_input("💎 ¿Cuántos dijes especiales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_especiales_mayorista")
     with col6:
-        cantidad_letras = st.number_input('💌 Cuantas letras distintas vas a usar?', min_value=1, max_value=50, step=1, key='cantidad_letras')
+        cantidad_letras = st.number_input('💌 Cuantas letras distintas vas a usar?', min_value=1, max_value=50, step=1, key='cantidad_letras_mayorista')
 
 
     # ---------- Paso 2: Formulario principal ----------
