@@ -193,7 +193,7 @@ with tabs_metricas[1]:
         labels={"Cantidad": "Cantidad en Stock", "Descripción": "Material"},
         )
         fig_stock.update_layout(yaxis_categoryorder='total ascending')
-        st.plotly_chart(fig, use_container_width=True, key='bajo_stock')
+        st.plotly_chart(fig_stock, use_container_width=True, key='bajo_stock')
     else:
         st.success("🎉 No hay materiales con stock bajo.")
 
