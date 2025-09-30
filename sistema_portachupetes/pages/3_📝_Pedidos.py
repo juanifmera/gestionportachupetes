@@ -70,7 +70,7 @@ with tabs_pedido[0]:
         #--- Dijes Normales (dinámico) ---
         st.markdown("### ✨ Dijes Normales")
         dijes_normales_seleccionados = []
-        dijes_normales = stock_df[stock_df["Categoría"] == "Dije"]["Código"].tolist()#type:ignore
+        dijes_normales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Normal")]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_normales):
             codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}")
@@ -79,7 +79,7 @@ with tabs_pedido[0]:
         # --- Dijes Especiales (dinámico) ---
         st.markdown("### 💎 Dijes Especiales")
         dijes_especiales_seleccionados = []
-        dijes_especiales = stock_df[stock_df["Categoría"] == "Especial"]["Código"].tolist()#type:ignore
+        dijes_especiales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Especial")]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_especiales):
             codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}")
@@ -429,7 +429,7 @@ with tabs_pedido[6]:
         #--- Dijes Normales (dinámico) ---
         st.markdown("### ✨ Dijes Normales")
         dijes_normales_seleccionados = []
-        dijes_normales = stock_df[stock_df["Categoría"] == "Dije"]["Código"].tolist()#type:ignore
+        dijes_normales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Normal")]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_normales):
             col1, col2 = st.columns([2, 1])
@@ -442,7 +442,7 @@ with tabs_pedido[6]:
         # --- Dijes Especiales (dinámico) ---
         st.markdown("### 💎 Dijes Especiales")
         dijes_especiales_seleccionados = []
-        dijes_especiales = stock_df[stock_df["Categoría"] == "Especial"]["Código"].tolist()#type:ignore
+        dijes_especiales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Especial")]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_especiales):
             col1, col2 = st.columns([2, 1])
