@@ -156,7 +156,7 @@ with tabs_metricas[0]:
         legend_title="Estado"
     )
 
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
 
     # ---------------------------
     st.divider()
@@ -178,11 +178,11 @@ with tabs_metricas[1]:
     df_stock = cargar_stock()
     stock_bajo = df_stock[df_stock['Cantidad'] < 5] # type: ignore
 
-    st.dataframe(stock_bajo, width='stretch')
-    st.caption(f"🔍 Se encontraron {stock_bajo.shape[0]} materiales con stock bajo (menos de 5 unidades).")
+    st.dataframe(stock_bajo, use_container_width=True)
+    st.caption(f"🔍 Se encontraron {stock_bajo.shape[0]} materiales con stock bajo (menos de 5 unidades).") #type:ignore
 
     # Gráfico de barras
-    if not stock_bajo.empty:
+    if not stock_bajo.empty: #type:ignore
         fig_stock = px.bar(
         stock_bajo,
         x="Cantidad",
@@ -193,7 +193,7 @@ with tabs_metricas[1]:
         labels={"Cantidad": "Cantidad en Stock", "Descripción": "Material"},
         )
         fig_stock.update_layout(yaxis_categoryorder='total ascending')
-        st.plotly_chart(fig_stock, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.success("🎉 No hay materiales con stock bajo.")
 
@@ -238,4 +238,4 @@ with tabs_metricas[2]:
     )
     fig.update_layout(yaxis=dict(autorange="reversed"))
 
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
