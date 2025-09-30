@@ -156,7 +156,7 @@ with tabs_metricas[0]:
         legend_title="Estado"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key='evol_pedidos_semanal')
 
     # ---------------------------
     st.divider()
@@ -193,7 +193,7 @@ with tabs_metricas[1]:
         labels={"Cantidad": "Cantidad en Stock", "Descripción": "Material"},
         )
         fig_stock.update_layout(yaxis_categoryorder='total ascending')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key='bajo_stock')
     else:
         st.success("🎉 No hay materiales con stock bajo.")
 
@@ -238,4 +238,4 @@ with tabs_metricas[2]:
     )
     fig.update_layout(yaxis=dict(autorange="reversed"))
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key='mas_usados')
