@@ -145,12 +145,11 @@ with tabs_pedido[1]:
     col1, col2, col3, col4 = st.columns(4)
 
     df_pedidos = cargar_pedidos()
-
-    if df_pedidos.empty: #type:ignore
-        st.warning('No hay pedidos generados aun ...')
-        st.stop()
-
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
+
+    if df_pedidos_filtrado.empty:
+        st.warning("❌ No hay pedidos en proceso para cancelar.")
+        st.stop()
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
 
