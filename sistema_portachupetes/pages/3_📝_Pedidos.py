@@ -155,19 +155,19 @@ with tabs_pedido[1]:
     st.dataframe(df_pedidos_filtrado, width='stretch')
 
     with st.form('form_cancelar_pedido', border=False):
-        if not df_pedidos.empty: #type:ignore
-            pedido_a_cancelar = st.selectbox('Seleccionar el pedido a cancelar', sorted(df_pedidos_filtrado['ID'].unique(), reverse=True)) #type:ignore
 
-            confirmar = st.checkbox('⚠️ Confirmo que deseo cancelar este pedido. Cancelar el pedido hara que los materiales sean reingresados al Stock', value=False)
-            submit = st.form_submit_button("Cancelar Pedido", type="primary", width='stretch', icon="💣")
+        pedido_a_cancelar = st.selectbox('Seleccionar el pedido a cancelar', sorted(df_pedidos_filtrado['ID'].unique(), reverse=True)) #type:ignore
 
-            if submit:
-                if not confirmar:
-                    st.warning("⚠️ Debes confirmar la eliminación marcando la casilla.")
-                    st.stop()
+        confirmar = st.checkbox('⚠️ Confirmo que deseo cancelar este pedido. Cancelar el pedido hara que los materiales sean reingresados al Stock', value=False)
+        submit = st.form_submit_button("Cancelar Pedido", type="primary", width='stretch', icon="💣")
 
-                resultado = cancelar_pedido(int(pedido_a_cancelar)) #type:ignore
-                mostrar_exito_y_reiniciar(resultado)
+        if submit:
+            if not confirmar:
+                st.warning("⚠️ Debes confirmar la eliminación marcando la casilla.")
+                st.stop()
+
+            resultado = cancelar_pedido(int(pedido_a_cancelar)) #type:ignore
+            mostrar_exito_y_reiniciar(resultado)
 
 ## TERMINAR PEDIDO ##
 with tabs_pedido[2]:
@@ -175,6 +175,7 @@ with tabs_pedido[2]:
     st.write('Seleccioná un pedido en proceso para marcarlo como terminado.')
 
     df_pedidos = cargar_pedidos()
+    
     if df_pedidos.empty: #type:ignore
         st.warning('No hay pedidos generados aun ...')
         st.stop()
@@ -210,11 +211,11 @@ with tabs_pedido[3]:
     st.write('Seleccioná un pedido activo y modificá los campos que desees.')
 
     df_pedidos = cargar_pedidos()
-    df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
-
-    if df_pedidos_activos.empty:# type: ignore
-        st.warning("❌ No hay pedidos activos para actualizar.")
+    if df_pedidos.empty: #type:ignore
+        st.warning('No hay pedidos generados aun ...')
         st.stop()
+
+    df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
 
     id_pedido = st.selectbox("Seleccionar Pedido a Actualizar (ID)", sorted(df_pedidos_activos['ID'].unique(), reverse=True))# type: ignore
     datos_pedido = obtener_pedido(int(id_pedido))  # type: ignore

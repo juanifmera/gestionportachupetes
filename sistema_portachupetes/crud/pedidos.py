@@ -514,3 +514,59 @@ def obtener_materiales_mayorista(data: dict) -> list[tuple]:  # type: ignore
     except Exception as e:
         print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
         return []
+    
+def crear_pedido_dummy(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono="", tipo='minorista'):
+    try:
+        session = Session(bind=engine)
+
+        # Verificar stock
+        result = verificar_confeccion_portachupetes(materiales_portachupete)
+        if not result["success"]:
+            return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
+
+        # Crear pedido
+        nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo)
+        session.add(nuevo_pedido)
+        session.flush()
+        session.refresh(nuevo_pedido)
+
+        # Obtener materiales usados
+        materiales_usados = obtener_materiales_utilizados(materiales_portachupete)
+
+        costo_total = 0.0
+        letras_procesadas = 0
+        cargo_extra_letra = 500
+
+        for codigo, cantidad in materiales_usados:
+            session.add(MaterialPedido(
+                pedido_id=nuevo_pedido.id,
+                codigo_material=codigo.upper(),
+                cantidad_usada=cantidad
+            ))
+            
+            # Buscar costo unitario
+            mat = session.query(Material).filter(Material.codigo_material == codigo.upper()).first()
+
+            if len(codigo) == 1 and codigo.isalpha():  # 🔠 Es una letra
+                for _ in range(cantidad):  # por si vienen varias del mismo código
+                    letras_procesadas += 1
+                    if letras_procesadas <= 5:
+                        if mat and mat.costo_unitario is not None:
+                            costo_total += mat.costo_unitario
+                    else:
+                        costo_total += cargo_extra_letra
+            else:
+                # Material normal (no letra)
+                if mat and mat.costo_unitario is not None:
+                    costo_total += mat.costo_unitario * cantidad
+
+        # Guardar costo total
+        nuevo_pedido.costo_total = float(costo_total)
+        session.add(nuevo_pedido)
+        session.commit()
+
+        return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
+
+    except Exception as e:
+        session.rollback()
+        return f"❌ Error al generar pedido: {e}"
