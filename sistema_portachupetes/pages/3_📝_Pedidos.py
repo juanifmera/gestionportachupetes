@@ -79,7 +79,7 @@ with tabs_pedido[0]:
         # --- Dijes Especiales (dinámico) ---
         st.markdown("### 💎 Dijes Especiales")
         dijes_especiales_seleccionados = []
-        dijes_especiales = stock_df[stock_df["Categoría"] == "Dije Especial"]["Código"].tolist()#type:ignore
+        dijes_especiales = stock_df[stock_df["Categoría"] == "Especial"]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_especiales):
             codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}")
@@ -442,7 +442,7 @@ with tabs_pedido[6]:
         # --- Dijes Especiales (dinámico) ---
         st.markdown("### 💎 Dijes Especiales")
         dijes_especiales_seleccionados = []
-        dijes_especiales = stock_df[stock_df["Categoría"] == "Dije Especial"]["Código"].tolist()#type:ignore
+        dijes_especiales = stock_df[stock_df["Categoría"] == "Especial"]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_especiales):
             col1, col2 = st.columns([2, 1])
