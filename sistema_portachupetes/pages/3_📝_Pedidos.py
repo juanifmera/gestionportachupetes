@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime, timedelta
-from crud.pedidos import crear_pedido, listar_todos_pedidos, actualizar_varios_campos_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido, calcular_costo_total_pedido
+from crud.pedidos import crear_pedido, listar_todos_pedidos, actualizar_varios_campos_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido, calcular_costo_total_pedido, crear_pedido_mayorista
 from crud.stock import listar_stock
 from crud.materiales import listar_todos_materiales
 import pandas as pd
@@ -25,7 +25,7 @@ proteger_pagina()
 st.title('Pedidos :money_with_wings:')
 st.divider()
 
-tabs_pedido = st.tabs(['Generar Pedido :smile:', 'Cancelar pedido :angry:', 'Terminar pedido ✅', 'Actualizar pedido :zipper_mouth_face:', 'Listar pedidos :alien:', 'Ver Materiales por Pedido :monocle:','Proximamente ... :dizzy_face:'])
+tabs_pedido = st.tabs(['Generar Pedido :smile:', 'Cancelar pedido :angry:', 'Terminar pedido ✅', 'Actualizar pedido :zipper_mouth_face:', 'Listar pedidos :alien:', 'Ver Materiales por Pedido :monocle:', 'Pedidos Mayoristas :heavy_dollar_sign:', 'Proximamente ... :dizzy_face:'])
 
 ## GENERAR PEDIDO ##
 with tabs_pedido[0]:
@@ -355,6 +355,150 @@ with tabs_pedido[5]:
     else:
         st.warning("❌ No hay pedidos registrados en el sistema.")
 
-## PROXIMAS FEATURES ##    
+## PEDIDOS MAYORISTAS ##
 with tabs_pedido[6]:
+
+    st.subheader("🧾 Generar un Nuevo Pedido Mayorista", divider="rainbow")
+
+    # ---------- Paso 1: Configuración dinámica ----------
+    st.markdown("### 🔧 Paso 1: Configuración de materiales al por Mayor")
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+
+    with col1:
+        cantidad_broches = st.number_input('🌅 Cuantos broches distintos vas a usar?', min_value=0, max_value=50, step=1, key='cantidad_broches')
+    with col2:
+        cantidad_bolitas = st.number_input("🔵 ¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_bolitas")
+    with col3:
+        cantidad_lentejas = st.number_input("🟤 ¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_lentejas")
+    with col4:
+        cantidad_dijes_normales = st.number_input("✨ ¿Cuántos dijes normales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_normales")
+    with col5:
+        cantidad_dijes_especiales = st.number_input("💎 ¿Cuántos dijes especiales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_especiales")
+    with col6:
+        cantidad_letras = st.number_input('💌 Cuantas letras distintas vas a usar?', min_value=1, max_value=50, step=1, key='cantidad_letras')
+
+
+    # ---------- Paso 2: Formulario principal ----------
+    with st.form("generar_pedido_form_mayorista", clear_on_submit=False, border=True):
+
+        st.markdown("### 📋 Paso 2: Detalles del pedido")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            cliente = st.text_input("🧑 Nombre del cliente *", placeholder="Ej: Maria González")
+        with col2:
+            telefono = st.text_input("📞 Teléfono", placeholder="Ej: 1122334455")
+        with col3:
+            fecha = st.date_input("📅 Fecha del pedido", value=datetime.today(), format='DD/MM/YYYY')
+
+        st.divider()
+
+        stock_df = cargar_stock()
+
+        # --- Broche (Dinamico) ---
+        st.markdown("### 🌅 Broches")
+        broches = stock_df[stock_df["Categoría"] == "Broche"]["Código"].tolist() #type:ignore
+        broches_seleccionados = []
+
+        for i in range(cantidad_broches):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                codigo = st.selectbox(f"Broche #{i + 1}", broches, key=f"broche_{i}")
+            with col2:
+                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"broche_cantidad_{i}")
+            broches_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
+        
+        #--- Dijes Normales (dinámico) ---
+        st.markdown("### ✨ Dijes Normales")
+        dijes_normales_seleccionados = []
+        dijes_normales = stock_df[stock_df["Categoría"] == "Dije"]["Código"].tolist()#type:ignore
+
+        for i in range(cantidad_dijes_normales):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}")
+            with col2:
+                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"dije_normal_cantidad_{i}")
+            dijes_normales_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
+
+        # --- Dijes Especiales (dinámico) ---
+        st.markdown("### 💎 Dijes Especiales")
+        dijes_especiales_seleccionados = []
+        dijes_especiales = stock_df[stock_df["Categoría"] == "Dije Especial"]["Código"].tolist()#type:ignore
+
+        for i in range(cantidad_dijes_especiales):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}")
+            with col2:
+                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"dije_especial_cantidad_{i}")
+            dijes_especiales_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
+
+        # --- Bolitas (dinámico) ---
+        st.markdown("### 🔵 Bolitas")
+        bolitas_seleccionadas = []
+        bolitas_disponibles = stock_df[stock_df["Categoría"] == "Bolita"]["Código"].tolist()#type:ignore
+
+        for i in range(cantidad_bolitas):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}")
+            with col2:
+                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"bolita_cantidad_{i}")
+            bolitas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
+
+        # --- Lentejas (dinámico) ---
+        st.markdown("### 🟤 Lentejas")
+        lentejas_seleccionadas = []
+        lentejas_disponibles = stock_df[stock_df["Categoría"] == "Lenteja"]["Código"].tolist()#type:ignore
+
+        for i in range(cantidad_lentejas):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}")
+            with col2:
+                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"lenteja_cantidad_{i}")
+            lentejas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
+
+        # --- Letras (dinamico) ---
+        st.markdown("### 💌 Letras")
+        letras_seleccionadas = []
+        letras_disponibles = stock_df[stock_df['Categoría'] == 'Letra']['Código'].tolist() #type:ignore
+
+        for i in range(cantidad_letras):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                codigo = st.selectbox(f'Letra #{i + 1}', letras_disponibles, key=f'letra_codigo_{i}')
+            with col2:
+                cantidad = st.number_input('Cantidad', min_value=1, step=1, key=f'letra_cantidad_{i}')
+            letras_seleccionadas.append({'codigo':codigo, 'cantidad':cantidad})
+
+        st.divider()
+
+        # ---------- Botón de envío ----------
+        submit = st.form_submit_button("🧾 Generar Pedido", width='stretch', type='primary')
+
+        if submit:
+            if not cliente:
+                st.error("❌ Debés completar los campos obligatorios: Cliente.")
+                st.stop()
+
+            datos_portachupetes = {
+                "broches": broches_seleccionados,
+                "letras": letras_seleccionadas,
+                "dijes_normales": dijes_normales_seleccionados,
+                "dijes_especiales": dijes_especiales_seleccionados,
+                "bolitas": bolitas_seleccionadas,
+                "lentejas": lentejas_seleccionadas,
+            }
+
+            resultado = crear_pedido_mayorista(cliente, datos_portachupetes, telefono=telefono, fecha_pedido=fecha, tipo) #type:ignore
+
+            if "éxito" in resultado.lower():
+                mostrar_exito_y_reiniciar(resultado)
+            else:
+                st.error(resultado)
+
+## PROXIMAS FEATURES ##    
+with tabs_pedido[7]:
     st.info(':warning: Mas Acciones seran Incorporadas en breve!!! (Llevar Ideas a Juan Mera)')

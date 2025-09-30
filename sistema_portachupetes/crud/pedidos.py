@@ -1,4 +1,4 @@
-from logic.verificador import verificar_confeccion_portachupetes
+from logic.verificador import verificar_confeccion_portachupetes, verificar_confeccion_pedido_mayorista
 from sqlalchemy.orm import Session
 from sqlalchemy import func, select
 from database.models import Stock, Material, Pedido, MaterialPedido
@@ -59,7 +59,7 @@ def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
         print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
         return []
     
-def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono=""):
+def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono="", tipo='minorista'):
     try:
         session = Session(bind=engine)
 
@@ -69,7 +69,7 @@ def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso
             return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
 
         # Crear pedido
-        nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado)
+        nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo)
         session.add(nuevo_pedido)
         session.flush()
         session.refresh(nuevo_pedido)
@@ -267,7 +267,7 @@ def listar_materiales_pedido(id: int):
         session = Session(bind=engine)
 
         #Genero un Join pata traerme el detalle del material utilizado con su costo unitario
-        stm = select(MaterialPedido.codigo_material, MaterialPedido.cantidad_usada, Material.costo_unitario).join(Material, MaterialPedido.codigo_material == Material.codigo_material)
+        stm = select(MaterialPedido.codigo_material, MaterialPedido.cantidad_usada, Material.costo_unitario).join(Material, MaterialPedido.codigo_material == Material.codigo_material).filter(MaterialPedido.pedido_id == id)
         materiales = session.execute(stm).all()
 
         # Siempre devolver un DataFrame, incluso vacío
@@ -422,3 +422,95 @@ def actualizar_varios_campos_pedido(id: int, cambios: dict) -> str:
 
     except Exception as e:
         return f"❌ Ocurrió un problema al actualizar el Pedido con ID {id}. Detalle: {e}"
+
+def crear_pedido_mayorista(cliente:str,  materiales:dict, estado='En proceso', fecha_pedido=datetime.today(), tipo='mayorista'):
+    try:
+        session = Session(bind=engine)
+
+        # Verificar stock
+        result = verificar_confeccion_pedido_mayorista(materiales)
+        if not result["success"]:
+            return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
+
+        # Crear pedido
+        nuevo_pedido_mayorista = Pedido(cliente=cliente, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo)
+        session.add(nuevo_pedido_mayorista)
+        session.flush()
+        session.refresh(nuevo_pedido_mayorista)
+
+        # Obtener materiales usados
+        materiales_usados = obtener_materiales_mayorista(materiales)
+
+        costo_total = 0.0
+
+        for codigo, cantidad in materiales_usados:
+            session.add(MaterialPedido(
+                pedido_id=nuevo_pedido_mayorista.id,
+                codigo_material=codigo.upper(),
+                cantidad_usada=cantidad
+            ))
+
+            # Descontar stock
+            stock = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
+            if stock:
+                stock.cantidad -= cantidad
+
+            # Buscar costo unitario
+            mat = session.query(Material).filter(Material.codigo_material == codigo.upper()).first() 
+            
+            if mat and mat.costo_unitario is not None:
+                costo_total += mat.costo_unitario * cantidad
+
+        # Guardar costo total
+        nuevo_pedido_mayorista.costo_total = float(costo_total)
+        session.add(nuevo_pedido_mayorista)
+        session.commit()
+
+        return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido_mayorista.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
+
+    except Exception as e:
+        session.rollback()
+        return f"❌ Error al generar pedido: {e}"
+    
+def obtener_materiales_mayorista(data: dict) -> list[tuple]:  # type: ignore
+    """
+    Función auxiliar que devuelve una lista de tuplas con los materiales usados y sus cantidades.
+    """
+    try:
+        result = verificar_confeccion_pedido_mayorista(data)
+
+        if result["success"]:
+            materiales = []
+
+            # Broche
+            for broche in data.get("broches", []):
+                materiales.append((broche["codigo"], broche["cantidad"]))
+
+            # Letras del nombre
+            for letra in data.get("letras", []):
+                materiales.append((letra["codigo"], letra["cantidad"]))
+
+            # Dijes normales (puede haber varios)
+            for dije in data.get("dijes_normales", []):
+                materiales.append((dije["codigo"], dije["cantidad"]))
+
+            # Dijes especiales (puede haber varios)
+            for dije in data.get("dijes_especiales", []):
+                materiales.append((dije["codigo"], dije['cantidad']))
+
+            # Bolitas
+            for bolita in data.get("bolitas", []):
+                materiales.append((bolita["codigo"], bolita["cantidad"]))
+
+            # Lentejas
+            for lenteja in data.get("lentejas", []):
+                materiales.append((lenteja["codigo"], lenteja["cantidad"]))
+
+            return materiales
+
+        else:
+            return []
+
+    except Exception as e:
+        print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
+        return []

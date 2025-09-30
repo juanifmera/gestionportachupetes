@@ -80,3 +80,72 @@ def verificar_confeccion_portachupetes(data: dict) -> dict:  # type: ignore
 
     except Exception as e:
         print(f'Ocurrió un problema al validar la confección del pedido. Archivo logic/verificador.py. Función: verificar_confeccion_portachupetes. ERROR: {e}')
+
+def verificar_confeccion_pedido_mayorista(data: dict) -> dict:  # type: ignore
+    """
+    Valida si hay suficiente stock para confeccionar un pedido mayorista según los materiales solicitados.
+    Recibe un diccionario con los siguientes posibles campos:
+        - broches: list[{'codigo': str, 'cantidad': int}]
+        - letras: list[{'codigo': str, 'cantidad': int}]
+        - dijes_normales: list[{'codigo': str, 'cantidad': int}]
+        - dijes_especiales: list[{'codigo': str, 'cantidad': int}]
+        - bolitas: list[{'codigo': str, 'cantidad': int}]
+        - lentejas: list[{'codigo': str, 'cantidad': int}]
+    Devuelve un diccionario con:
+        - 'success': bool
+        - 'faltantes': list[str]
+        - 'detalles': list[str]
+    """
+    try:
+        session = Session(bind=engine)
+
+        faltantes = []
+        detalles = []
+        success = True
+
+        def verificar_material(codigo: str, cantidad_requerida: int, etiqueta: str):
+            nonlocal success
+            material = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
+
+            if material:
+                if material.cantidad >= cantidad_requerida:
+                    detalles.append(f"{etiqueta.upper()}: OK ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
+                else:
+                    faltantes.append(f"{etiqueta.upper()}: Stock insuficiente ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
+                    success = False
+            else:
+                faltantes.append(f"{etiqueta.upper()}: No encontrado en la base de datos")
+                success = False
+
+        # Broche
+        for broche in data.get("broches", []):
+            verificar_material(broche["codigo"], broche["cantidad"], f"Broche {broche['codigo']}")
+
+        # Letras
+        for letra in data.get("letras", []):
+            verificar_material(letra["codigo"], letra["cantidad"], f"Letra {letra['codigo']}")
+
+        # Dijes normales (pueden ser varios)
+        for dije in data.get("dijes_normales", []):
+            verificar_material(dije["codigo"], dije["cantidad"], f"Dije Normal {dije['codigo']}")
+
+        # Dijes especiales (pueden ser varios)
+        for dije in data.get("dijes_especiales", []):
+            verificar_material(dije["codigo"], dije['cantidad'], f"Dije especial {dije['codigo']}")
+
+        # Bolitas (pueden ser varias)
+        for bolita in data.get("bolitas", []):
+            verificar_material(bolita["codigo"], bolita["cantidad"], f"Bolita {bolita['codigo']}")
+
+        # Lentejas (pueden ser varias)
+        for lenteja in data.get("lentejas", []):
+            verificar_material(lenteja["codigo"], lenteja["cantidad"], f"Lenteja {lenteja['codigo']}")
+
+        return {
+            "success": success,
+            "faltantes": faltantes,
+            "detalles": detalles
+        }
+
+    except Exception as e:
+        print(f'Ocurrió un problema al validar la confección del pedido. Archivo logic/verificador.py. Función: verificar_confeccion_portachupetes. ERROR: {e}')
