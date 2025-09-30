@@ -492,7 +492,7 @@ with tabs_pedido[6]:
                 "lentejas": lentejas_seleccionadas,
             }
 
-            resultado = crear_pedido_mayorista(cliente, datos_portachupetes, telefono=telefono, fecha_pedido=fecha, tipo) #type:ignore
+            resultado = crear_pedido_mayorista(cliente, datos_portachupetes, telefono=telefono, fecha_pedido=fecha) #type:ignore
 
             if "éxito" in resultado.lower():
                 mostrar_exito_y_reiniciar(resultado)
