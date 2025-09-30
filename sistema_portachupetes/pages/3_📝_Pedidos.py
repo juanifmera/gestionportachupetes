@@ -210,9 +210,6 @@ with tabs_pedido[3]:
     st.write('Seleccioná un pedido activo y modificá los campos que desees.')
 
     df_pedidos = cargar_pedidos()
-    if df_pedidos.empty: #type:ignore
-        st.warning('No hay pedidos generados aun ...')
-        st.stop()
     df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
 
     if df_pedidos_activos.empty:# type: ignore
@@ -307,7 +304,7 @@ with tabs_pedido[5]:
 
     # Obtener todos los pedidos
     df_pedidos = cargar_pedidos()
-    
+
     if df_pedidos.empty: #type:ignore
         st.warning('No hay pedidos generados aun ...')
         st.stop()
