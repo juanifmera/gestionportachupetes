@@ -147,6 +147,10 @@ with tabs_pedido[1]:
     df_pedidos = cargar_pedidos()
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
 
+    if df_pedidos_filtrado.empty: #type:ignore
+        st.warning('No hay pedidos generados aun ...')
+        st.stop()
+
     st.dataframe(df_pedidos_filtrado, width='stretch')
 
     with st.form('form_cancelar_pedido', border=False):
