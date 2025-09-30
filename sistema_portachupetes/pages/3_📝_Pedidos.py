@@ -488,7 +488,7 @@ with tabs_pedido[6]:
             with col1:
                 codigo = st.selectbox(f'Letra #{i + 1}', letras_disponibles, key=f'letra_codigo_{i}')
             with col2:
-                cantidad = st.number_input('Cantidad', min_value=0, step=1, key=f'letra_cantidad_{i}')
+                cantidad = st.number_input('Cantidad', min_value=0, step=1, value=0, key=f'letra_cantidad_{i}')
             letras_seleccionadas.append({'codigo':codigo, 'cantidad':cantidad})
 
         st.divider()
