@@ -204,8 +204,7 @@ def agregar_stock_bulk(session: Session, codigo_material: str, cantidad: int, fe
 
     except Exception as e:
         return f'❌ Error en agregar_stock_bulk para {codigo_material.upper()}: {e}'
-
-    
+   
 # Validar stock usando una sesión existente
 def validar_stock_with_session(session: Session, codigo_material: str) -> bool:
     """
@@ -213,7 +212,6 @@ def validar_stock_with_session(session: Session, codigo_material: str) -> bool:
     """
     result = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
     return bool(result)
-
 
 # Validar material usando una sesión existente
 def validar_material_with_session(session: Session, codigo_material: str) -> bool:
