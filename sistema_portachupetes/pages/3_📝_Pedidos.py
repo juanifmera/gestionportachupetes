@@ -73,7 +73,7 @@ with tabs_pedido[0]:
         dijes_normales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Normal")]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_normales):
-            codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}")
+            codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}_minorista")
             dijes_normales_seleccionados.append({"codigo": codigo})
 
         # --- Dijes Especiales (dinámico) ---
@@ -82,7 +82,7 @@ with tabs_pedido[0]:
         dijes_especiales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Especial")]["Código"].tolist()#type:ignore
 
         for i in range(cantidad_dijes_especiales):
-            codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}")
+            codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}_minorista")
             dijes_especiales_seleccionados.append({"codigo": codigo})
 
         # --- Bolitas (dinámico) ---
@@ -93,9 +93,9 @@ with tabs_pedido[0]:
         for i in range(cantidad_bolitas):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}")
+                codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}_minorista")
             with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"bolita_cantidad_{i}")
+                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"bolita_cantidad_{i}_minorista")
             bolitas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
 
         # --- Lentejas (dinámico) ---
@@ -106,9 +106,9 @@ with tabs_pedido[0]:
         for i in range(cantidad_lentejas):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}")
+                codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}_minorista")
             with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"lenteja_cantidad_{i}")
+                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"lenteja_cantidad_{i}_minorista")
             lentejas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
 
         st.divider()
