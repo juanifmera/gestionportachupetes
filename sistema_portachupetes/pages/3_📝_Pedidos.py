@@ -145,11 +145,12 @@ with tabs_pedido[1]:
     col1, col2, col3, col4 = st.columns(4)
 
     df_pedidos = cargar_pedidos()
-    df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
 
-    if df_pedidos_filtrado.empty:
-        st.warning("❌ No hay pedidos en proceso para cancelar.")
+    if df_pedidos.empty: #type:ignore
+        st.warning('No hay pedidos generados aun ...')
         st.stop()
+
+    df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
 
@@ -174,6 +175,10 @@ with tabs_pedido[2]:
     st.write('Seleccioná un pedido en proceso para marcarlo como terminado.')
 
     df_pedidos = cargar_pedidos()
+    if df_pedidos.empty: #type:ignore
+        st.warning('No hay pedidos generados aun ...')
+        st.stop()
+
     df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso']  #type:ignore
 
     st.dataframe(df_pedidos_filtrado, width='stretch')
@@ -205,6 +210,9 @@ with tabs_pedido[3]:
     st.write('Seleccioná un pedido activo y modificá los campos que desees.')
 
     df_pedidos = cargar_pedidos()
+    if df_pedidos.empty: #type:ignore
+        st.warning('No hay pedidos generados aun ...')
+        st.stop()
     df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
 
     if df_pedidos_activos.empty:# type: ignore
@@ -256,6 +264,10 @@ with tabs_pedido[4]:
 
     df_original = cargar_pedidos()
 
+    if df_original.empty: #type:ignore
+        st.warning('No hay pedidos generados aun ...')
+        st.stop()
+
     with col1:
         filtro_estado = st.selectbox('Filtrar por Estado', key='filtro_estado_pedido', options=['Todas'] + sorted(df_original['Estado'].unique()), width='stretch')  # type: ignore
 
@@ -295,6 +307,10 @@ with tabs_pedido[5]:
 
     # Obtener todos los pedidos
     df_pedidos = cargar_pedidos()
+    
+    if df_pedidos.empty: #type:ignore
+        st.warning('No hay pedidos generados aun ...')
+        st.stop()
 
     # Filtrar solo los pedidos válidos
     if isinstance(df_pedidos, pd.DataFrame) and not df_pedidos.empty:
