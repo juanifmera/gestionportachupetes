@@ -421,9 +421,9 @@ with tabs_pedido[6]:
         for i in range(cantidad_broches):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f"Broche #{i + 1}", broches, key=f"broche_{i}")
+                codigo = st.selectbox(f"Broche #{i + 1}", broches, key=f"broche_{i}_mayorista")
             with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"broche_cantidad_{i}")
+                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"broche_cantidad_{i}_mayorista")
             broches_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
         
         #--- Dijes Normales (dinámico) ---
@@ -434,9 +434,9 @@ with tabs_pedido[6]:
         for i in range(cantidad_dijes_normales):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}")
+                codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}_mayorista")
             with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"dije_normal_cantidad_{i}")
+                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"dije_normal_cantidad_{i}_mayorista")
             dijes_normales_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
 
         # --- Dijes Especiales (dinámico) ---
@@ -447,9 +447,9 @@ with tabs_pedido[6]:
         for i in range(cantidad_dijes_especiales):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}")
+                codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}_mayorista")
             with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"dije_especial_cantidad_{i}")
+                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"dije_especial_cantidad_{i}_mayorista")
             dijes_especiales_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
 
         # --- Bolitas (dinámico) ---
@@ -460,9 +460,9 @@ with tabs_pedido[6]:
         for i in range(cantidad_bolitas):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}")
+                codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}_mayorista")
             with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"bolita_cantidad_{i}")
+                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"bolita_cantidad_{i}_mayorista")
             bolitas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
 
         # --- Lentejas (dinámico) ---
@@ -473,9 +473,9 @@ with tabs_pedido[6]:
         for i in range(cantidad_lentejas):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}")
+                codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}_mayorista")
             with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"lenteja_cantidad_{i}")
+                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"lenteja_cantidad_{i}_mayorista")
             lentejas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
 
         # --- Letras (dinamico) ---
@@ -486,9 +486,9 @@ with tabs_pedido[6]:
         for i in range(cantidad_letras):
             col1, col2 = st.columns([2, 1])
             with col1:
-                codigo = st.selectbox(f'Letra #{i + 1}', letras_disponibles, key=f'letra_codigo_{i}')
+                codigo = st.selectbox(f'Letra #{i + 1}', letras_disponibles, key=f'letra_codigo_{i}_mayorista')
             with col2:
-                cantidad = st.number_input('Cantidad', min_value=0, step=1, value=0, key=f'letra_cantidad_{i}')
+                cantidad = st.number_input('Cantidad', min_value=0, step=1, value=0, key=f'letra_cantidad_{i}_mayorista')
             letras_seleccionadas.append({'codigo':codigo, 'cantidad':cantidad})
 
         st.divider()
