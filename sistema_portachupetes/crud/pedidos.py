@@ -423,7 +423,7 @@ def actualizar_varios_campos_pedido(id: int, cambios: dict) -> str:
     except Exception as e:
         return f"❌ Ocurrió un problema al actualizar el Pedido con ID {id}. Detalle: {e}"
 
-def crear_pedido_mayorista(cliente:str,  materiales:dict, estado='En proceso', fecha_pedido=datetime.today(), tipo='mayorista'):
+def crear_pedido_mayorista(cliente:str,  materiales:dict, estado='En proceso', fecha_pedido=datetime.today(), tipo='mayorista', telefono=''):
     try:
         session = Session(bind=engine)
 
@@ -433,7 +433,7 @@ def crear_pedido_mayorista(cliente:str,  materiales:dict, estado='En proceso', f
             return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
 
         # Crear pedido
-        nuevo_pedido_mayorista = Pedido(cliente=cliente, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo)
+        nuevo_pedido_mayorista = Pedido(cliente=cliente, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo, telefono=telefono)
         session.add(nuevo_pedido_mayorista)
         session.flush()
         session.refresh(nuevo_pedido_mayorista)

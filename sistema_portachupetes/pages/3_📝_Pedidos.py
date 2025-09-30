@@ -481,7 +481,7 @@ with tabs_pedido[6]:
         # --- Letras (dinamico) ---
         st.markdown("### 💌 Letras")
         letras_seleccionadas = []
-        letras_disponibles = stock_df[stock_df['Categoría'] == 'Letra']['Código'].tolist() #type:ignore
+        letras_disponibles = sorted(stock_df[stock_df['Categoría'] == 'Letra']['Código'].tolist()) #type:ignore
 
         for i in range(cantidad_letras):
             col1, col2 = st.columns([2, 1])
