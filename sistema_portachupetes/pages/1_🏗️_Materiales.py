@@ -40,7 +40,7 @@ with tabs_materiales[0]:
         with col2:
             descripcion = st.text_input('Agregar breve descripcion del Material', placeholder='EJ: Broche de Oso de Silicona Blanco')
 
-            categoria = st.selectbox('Agregar Categoria', ['Broche', 'Letra', 'Bolita', 'Lenteja', 'Dije', 'Dije Especial', 'Bolita Especial'])
+            categoria = st.selectbox('Agregar Categoria', ['Broche', 'Llavero', 'Identificador', 'Letra', 'Bolita', 'Lenteja', 'Dije', 'Dije Especial', 'Bolita Especial'])
 
             subcategoria = st.radio('Agregar una Subcategoria', ['Normal', 'Especial'], horizontal=True)
 
@@ -49,7 +49,7 @@ with tabs_materiales[0]:
 
         submit = st.form_submit_button('Agregar Material', icon='🚨', type='primary', width='stretch')
 
-        #Verifico que todos los campos hayan sifo completados con exito
+        #Verifico que todos los campos hayan sido completados con exito
         if submit:
             if not codigo_material or not descripcion or not color or not categoria or not subcategoria or not fecha_ingreso:
                 st.error("⚠️ Todos los campos son obligatorios, excepto los comentarios y el Costo Unitario Promedio.")
@@ -154,7 +154,7 @@ with tabs_materiales[2]:
         with col1:
             descripcion = st.text_input("Descripción", value=material["Descripción"]) # type: ignore
             color = st.text_input("Color", value=material["Color"])# type: ignore
-            categoria = st.selectbox("Categoría", ["Broche", 'Llavero', 'Identificador',"Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"], index=["Broche", "Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"].index(material["Categoría"])) # type: ignore
+            categoria = st.selectbox("Categoría", ["Broche", 'Llavero', 'Identificador', "Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"], index=["Broche", "Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"].index(material["Categoría"])) # type: ignore
         
         with col2:
             subcategoria = st.radio("Subcategoría", ["Normal", "Especial"], horizontal=True, index=["Normal", "Especial"].index(material["Subcategoría"]))# type: ignore
