@@ -41,7 +41,7 @@ class Pedido(Base):
     cliente:Mapped[str] = mapped_column(String)
     telefono:Mapped[str] = mapped_column(String, nullable=True, default='')
     fecha_pedido:Mapped[DateTime] = mapped_column(DateTime, default=datetime.today)
-    estado:Mapped[str] = mapped_column(String, nullable=False, default='En Proceso')
+    estado:Mapped[str] = mapped_column(String, nullable=False, default='En proceso')
     costo_total:Mapped[float] = mapped_column(Float, nullable=True)
     tipo: Mapped[str] = mapped_column(String, nullable=False, default='minorista')
 

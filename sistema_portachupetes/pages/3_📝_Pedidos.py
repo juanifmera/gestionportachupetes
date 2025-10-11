@@ -64,7 +64,7 @@ with tabs_pedido[0]:
         stock_df = cargar_stock()
 
         # --- Broche (obligatorio) ---
-        broches = stock_df[stock_df["Categoría"] == "Broche"]["Código"].tolist() #type:ignore
+        broches = stock_df[stock_df["Categoría"].isin(["Broche", "Llavero", "Identificador"])]["Código"].tolist() #type:ignore
         broche = st.selectbox("📌 Seleccionar Broche *", broches)
 
         #--- Dijes Normales (dinámico) ---

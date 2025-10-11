@@ -516,6 +516,7 @@ def obtener_materiales_mayorista(data: dict) -> list[tuple]:  # type: ignore
         return []
     
 def crear_pedido_dummy(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono="", tipo='minorista'):
+
     try:
         session = Session(bind=engine)
 
@@ -570,3 +571,40 @@ def crear_pedido_dummy(cliente: str, materiales_portachupete: dict, estado="En p
     except Exception as e:
         session.rollback()
         return f"❌ Error al generar pedido: {e}"
+    
+def actualizar_varios_campos_pedido_aux(id: int, cambios: dict) -> str:
+    """
+    USO INTERNO
+    """
+    try:
+        session = Session(bind=engine)
+        pedido = session.query(Pedido).filter(Pedido.id == id).first()
+
+        if not pedido:
+            return f"❌ No se encontró ningún pedido con ID {id}"
+
+        errores = []
+
+        for campo, valor in cambios.items():
+
+            if hasattr(pedido, campo):
+                # Cast para campos específicos
+                if campo == "costo_total":
+                    try:
+                        valor = float(valor)
+                    except:
+                        errores.append(f"⚠️ El valor de '{campo}' debe ser numérico.")
+                        continue
+
+                setattr(pedido, campo, valor)
+            else:
+                errores.append(f"⚠️ La columna '{campo}' no existe en el modelo Pedido.")
+
+        if errores:
+            return "\n".join(errores)
+
+        session.commit()
+        return f"✅ Pedido con ID {id} actualizado correctamente."
+
+    except Exception as e:
+        return f"❌ Ocurrió un problema al actualizar el Pedido con ID {id}. Detalle: {e}"
