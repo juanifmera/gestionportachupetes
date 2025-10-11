@@ -154,7 +154,7 @@ with tabs_materiales[2]:
         with col1:
             descripcion = st.text_input("Descripción", value=material["Descripción"]) # type: ignore
             color = st.text_input("Color", value=material["Color"])# type: ignore
-            categoria = st.selectbox("Categoría", ["Broche", 'Llavero', 'Identificador', "Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"], index=["Broche", "Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"].index(material["Categoría"])) # type: ignore
+            categoria = st.selectbox("Categoría", ["Broche", "Llavero", "Identificador", "Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"], index=["Broche", "Letra", "Bolita", "Lenteja", "Dije", "Dije Especial", "Bolita Especial"].index(material["Categoría"])) # type: ignore
         
         with col2:
             subcategoria = st.radio("Subcategoría", ["Normal", "Especial"], horizontal=True, index=["Normal", "Especial"].index(material["Subcategoría"]))# type: ignore
