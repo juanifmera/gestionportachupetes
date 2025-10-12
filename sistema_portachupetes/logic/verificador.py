@@ -31,12 +31,12 @@ def verificar_confeccion_portachupetes(data: dict) -> dict:  # type: ignore
 
             if material:
                 if material.cantidad >= cantidad_requerida:
-                    detalles.append(f"{etiqueta.upper()}: OK ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
+                    detalles.append(f"{codigo.upper()}: OK ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
                 else:
-                    faltantes.append(f"{etiqueta.upper()}: Stock insuficiente ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
+                    faltantes.append(f"{codigo.upper()}: Stock insuficiente ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
                     success = False
             else:
-                faltantes.append(f"{etiqueta.upper()}: No encontrado en la base de datos")
+                faltantes.append(f"{codigo.upper()}: No encontrado en la base de datos")
                 success = False
 
         # Broche (obligatorio)

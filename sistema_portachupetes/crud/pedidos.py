@@ -517,6 +517,9 @@ def obtener_materiales_mayorista(data: dict) -> list[tuple]:  # type: ignore
     
 def crear_pedido_dummy(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono="", tipo='minorista'):
 
+    '''
+    Funcion para genrar pedido dummy sin descontar material
+    '''
     try:
         session = Session(bind=engine)
 
