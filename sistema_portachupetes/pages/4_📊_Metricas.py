@@ -1,13 +1,9 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from crud.pedidos import listar_todos_pedidos
+from crud.pedidos import listar_todos_pedidos, listar_materiales_pedido_completo
 from crud.stock import listar_stock
 import plotly.express as px
-from database.engine import engine
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from database.models import MaterialPedido, Material
 import plotly.graph_objects as go
 from ui.utils.utils import proteger_pagina
 
@@ -201,27 +197,13 @@ with tabs_metricas[1]:
 with tabs_metricas[2]:
     st.subheader("📊 Materiales más Usados", divider="rainbow")
 
-    # Cargar materiales usados
-    session = Session(bind=engine)
-    materiales_usados = session.query(
-        MaterialPedido.codigo_material,
-        func.sum(MaterialPedido.cantidad_usada).label("Cantidad Usada")
-    ).group_by(MaterialPedido.codigo_material).all()
-
-    df_usos = pd.DataFrame(materiales_usados, columns=["Código", "Cantidad Usada"])
-
-    # Unir con info de Material
-    materiales = session.query(Material).all()
-    df_info = pd.DataFrame([{
-        "Código": m.codigo_material,
-        "Descripción": m.descripcion,
-        "Categoría": m.categoria
-    } for m in materiales])
-
-    df_merged = pd.merge(df_usos, df_info, on="Código", how="left")
+    df_merged = listar_materiales_pedido_completo()
 
     # Filtro por categoría
-    categorias = sorted(df_merged["Categoría"].dropna().unique())
+    categorias = sorted(df_merged["Categoría"].dropna().unique()) if not df_merged.empty else []
+    if not categorias:
+        st.info("Todavía no hay materiales utilizados en pedidos.")
+        st.stop()
     categoria_seleccionada = st.selectbox("Seleccioná una categoría para ver los más usados", categorias)
 
     df_filtrado = df_merged[df_merged["Categoría"] == categoria_seleccionada]

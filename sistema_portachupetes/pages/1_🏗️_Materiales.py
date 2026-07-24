@@ -1,5 +1,5 @@
 import streamlit as st
-from crud.materiales import agregar_material, listar_todos_materiales, eliminar_material, actualizar_varios_campos, obtener_material
+from crud.materiales import agregar_material, listar_todos_materiales, eliminar_material, actualizar_varios_campos, obtener_material, cargar_materiales_bulk
 from datetime import datetime, timedelta
 import pandas as pd
 import io
@@ -40,7 +40,7 @@ with tabs_materiales[0]:
         with col2:
             descripcion = st.text_input('Agregar breve descripcion del Material', placeholder='EJ: Broche de Oso de Silicona Blanco')
 
-            categoria = st.selectbox('Agregar Categoria', ['Broche', 'Llavero', 'Identificador', 'Letra', 'Bolita', 'Lenteja', 'Dije'])
+            categoria = st.selectbox('Agregar Categoria', ['Broche', 'Llavero', 'Identificador', 'Letra', 'Bolita', 'Lenteja', 'Dije', 'Bolsa', 'Lapicera'])
 
             subcategoria = st.radio('Agregar una Subcategoria', ['Normal', 'Especial'], horizontal=True)
 
@@ -154,7 +154,9 @@ with tabs_materiales[2]:
         with col1:
             descripcion = st.text_input("Descripción", value=material["Descripción"]) # type: ignore
             color = st.text_input("Color", value=material["Color"])# type: ignore
-            categoria = st.selectbox("Categoría", ["Broche", "Llavero", "Identificador", "Letra", "Bolita", "Lenteja", "Dije"], index=["Broche","Llavero", "Identificador", "Letra", "Bolita", "Lenteja", "Dije"].index(material["Categoría"])) # type: ignore
+            categorias = ["Broche", "Llavero", "Identificador", "Letra", "Bolita", "Lenteja", "Dije", "Bolsa", "Lapicera"]
+            categoria_actual = material["Categoría"] if material["Categoría"] in categorias else "Dije" # type: ignore
+            categoria = st.selectbox("Categoría", categorias, index=categorias.index(categoria_actual))
         
         with col2:
             subcategoria = st.radio("Subcategoría", ["Normal", "Especial"], horizontal=True, index=["Normal", "Especial"].index(material["Subcategoría"]))# type: ignore
@@ -276,37 +278,25 @@ with tabs_materiales[4]:
 
     # Funcion para cargar Varios Materiales #
     def bulk_upload_materiales(df):
-        try:
-            df = pd.read_excel(
-                file,
-                dtype={'codigo material': str},  # fuerza texto
-                converters={'codigo material': lambda v: (str(int(v)) if isinstance(v, float) and v.is_integer() else str(v)).strip().upper()})
-            
-            for index, material in df.iterrows():
-                resultado = agregar_material(codigo_material=material['codigo material'], descripcion=material['descripcion'], color=material['color'], categoria=material['categoria'], subcategoria=material['subcategoria'], fecha_ingreso=material['fecha ingreso'], comentarios=material['comentarios'], costo_unitario=material['costo unitario'])
-                
-                with st.spinner('Agregando Materiales a la Base de Datos ..'):
-                    if resultado.startswith('✅'):
-                        st.success(resultado)
+        resultados = cargar_materiales_bulk(df)
+        for resultado in resultados:
+            if resultado.startswith('✅'):
+                st.success(resultado)
+            elif resultado.startswith('⚠️'):
+                st.warning(resultado)
+            else:
+                st.error(resultado)
+        return "✔️ Carga masiva finalizada."
 
-                    elif resultado.startswith('⚠️'):
-                        st.warning(resultado)
-
-                    else:
-                        st.error(resultado)
-
-            return "✔️ Carga masiva finalizada correctamente."
-
-        except Exception as e:
-            return f'Error a la hora de cargar un Bulk Request'
-
-    if submit:
+    if submit and file:
         result = bulk_upload_materiales(df)
         st.success(result)
         with st.spinner('Porfavor verificar la carga de datos ..'):
             time.sleep(10)
         st.cache_data.clear()
         st.rerun()
+    elif submit:
+        st.warning("⚠️ Primero debés cargar un archivo Excel.")
 
 ## PROXIMAS FEATURES ##
 with tabs_materiales[5]:

@@ -4,7 +4,7 @@ import base64
 import os
 import copy
 
-st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
+st.set_page_config(layout='wide', page_title='Hito Gestión', page_icon=':baby_bottle:')
 
 def convertir_a_dict(obj):
     if isinstance(obj, dict):
@@ -42,12 +42,12 @@ username = st.session_state.get("username")
 # Control de acceso
 if authentication_status:
     
-    st.sidebar.title(f'Udiybaby - {username}')
+    st.sidebar.title(f'Hito - {username}')
     st.sidebar.success(f"Bienvenido, {name} 👋")
     st.sidebar.info("Navegá entre las páginas desde la barra lateral")
     authenticator.logout("Cerrar sesión", "sidebar")
 
-    st.title('Udibaby Sistema de Gestion 👶')
+    st.title('Hito - Sistema de Gestión 👶')
     st.divider()
     st.subheader('Bienvenido al Sistema de Control de Gestion. En este sistema vas a poder:')
     st.markdown(
@@ -106,7 +106,7 @@ if authentication_status:
             </div>
             """, unsafe_allow_html=True
             )
-        st.markdown(f"<p style='text-align: center;'>Udibaby Logo</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center;'>Hito</p>", unsafe_allow_html=True)
 
     with col3:
             st.markdown(

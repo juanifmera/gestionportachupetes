@@ -1,223 +1,145 @@
-from datetime import datetime
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from database.engine import engine
-from database.models import Material, Stock
-from crud.materiales import validar_material
+"""Stock actual y libro de movimientos en BigQuery."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+import getpass
+import uuid
+
 import pandas as pd
+from google.cloud import bigquery
 
-#Validar Lineas de Stock
-def validar_stock(codigo_material: str) -> bool: 
-    """
-    Verifica si existe una línea de Stock para un material dado
-    """
-    session = Session(bind=engine)
-    result = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
-    return bool(result)
+from database.client import query, query_dataframe, table
+from crud.materiales import validar_material
 
-#Incrementar Stock -> Publica
+STOCK = table("stock")
+MATERIALES = table("materiales")
+MOVIMIENTOS = table("movimientos_stock")
+
+
+def validar_stock(codigo_material: str) -> bool:
+    rows = list(query(
+        f"SELECT 1 FROM {STOCK} WHERE codigo_material=@codigo LIMIT 1",
+        [bigquery.ScalarQueryParameter("codigo", "STRING", codigo_material.strip().upper())],
+    ))
+    return bool(rows)
+
+
+def _aplicar_stock(codigo_material: str, nueva_cantidad: int, tipo: str, comentario=""):
+    codigo = codigo_material.strip().upper()
+    if nueva_cantidad < 0:
+        return f"⚠️ El stock de {codigo} no puede ser negativo."
+    if not validar_material(codigo):
+        return f"⚠️ No existe el material {codigo}."
+    params = [
+        bigquery.ScalarQueryParameter("codigo", "STRING", codigo),
+        bigquery.ScalarQueryParameter("cantidad", "INT64", int(nueva_cantidad)),
+        bigquery.ScalarQueryParameter("tipo", "STRING", tipo),
+        bigquery.ScalarQueryParameter("movimiento", "STRING", str(uuid.uuid4())),
+        bigquery.ScalarQueryParameter("comentario", "STRING", comentario),
+        bigquery.ScalarQueryParameter("usuario", "STRING", getpass.getuser()),
+    ]
+    query(
+        f"""
+        BEGIN TRANSACTION;
+        INSERT INTO {MOVIMIENTOS}
+        SELECT @movimiento,@codigo,CURRENT_TIMESTAMP(),@tipo,
+               @cantidad-COALESCE((SELECT cantidad FROM {STOCK}
+                                   WHERE codigo_material=@codigo LIMIT 1),0),
+               COALESCE((SELECT cantidad FROM {STOCK}
+                         WHERE codigo_material=@codigo LIMIT 1),0),
+               @cantidad,NULL,@comentario,@usuario;
+        MERGE {STOCK} T
+        USING (SELECT @codigo codigo_material, @cantidad cantidad) S
+        ON T.codigo_material=S.codigo_material
+        WHEN MATCHED THEN UPDATE SET cantidad=S.cantidad, fecha_modificacion=CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN INSERT(codigo_material,cantidad,fecha_modificacion)
+          VALUES(S.codigo_material,S.cantidad,CURRENT_TIMESTAMP());
+        COMMIT TRANSACTION;
+        """,
+        params,
+    )
+    return f"✅ Stock actualizado para {codigo}. Cantidad actual: {nueva_cantidad}."
+
+
+def agregar_stock(codigo_material: str, cantidad: int, fecha_modificacion=None):
+    codigo = codigo_material.strip().upper()
+    actual = obtener_stock(codigo)
+    anterior = actual["Cantidad"] if isinstance(actual, dict) else 0
+    return _aplicar_stock(codigo, anterior + int(cantidad), "INGRESO_MANUAL")
+
+
 def incrementar_stock(codigo_material: str, cantidad: int):
-    """
-    Incrementa el stock de un material ya existente
-    """
-    try:
-        session = Session(bind=engine)
-        
-        result = _incrementar_stock(session, codigo_material, cantidad)
-        if result:
-            session.commit()
-            return result
+    return agregar_stock(codigo_material, cantidad)
 
-    except Exception as e:
-        return f'❌ Ocurrio un error a la hora de incrementar el Stock del siguiente Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "incrementar_stock". DETALLE: {e}'
 
-#Incrementar Stock -> Interna
-def _incrementar_stock(session, codigo_material: str, cantidad: int) -> bool:
-    stock = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
-    if stock and cantidad > 0:
-        stock.cantidad += cantidad
-        stock.fecha_modificacion = datetime.today()
-        return f'✅ Stock actualizado para {codigo_material.upper()}. Agregaste {cantidad} unidades. Actualmente el producto tiene {stock.cantidad} unidades.' #type:ignore
-    else:
-        return f'⚠️ No se encontró el material {codigo_material.upper()} en el stock' #type:ignore
+def reducir_stock(codigo_material: str, cantidad: int):
+    actual = obtener_stock(codigo_material)
+    if not isinstance(actual, dict):
+        return actual
+    return _aplicar_stock(
+        codigo_material, int(actual["Cantidad"]) - int(cantidad), "EGRESO_MANUAL"
+    )
 
-#Agregar Stock
-def agregar_stock(codigo_material: str, cantidad: int, fecha_modificacion=datetime.today()):
-    try:
-        with Session(engine) as session:
-            if validar_material(codigo_material) and not validar_stock(codigo_material) and cantidad > 0:
-                nueva_entrada = Stock(
-                    codigo_material=codigo_material.upper(),
-                    cantidad=cantidad,
-                    fecha_modificacion=fecha_modificacion
-                )
-                session.add(nueva_entrada)
-                session.commit()
-                return f'✅ Nuevo stock creado. Material: {codigo_material.upper()} / Cantidad: {cantidad}'
 
-            elif validar_material(codigo_material) and validar_stock(codigo_material):
-                return incrementar_stock(codigo_material, cantidad)
-
-            else:
-                return f'⚠️ No existe material en la tabla Materiales con código {codigo_material.upper()}'
-
-    except Exception as e:
-        return (f'❌ Ocurrió un error al generar una nueva entrada de Stock '
-                f'para {codigo_material.upper()}. DETALLE: {e}')
-
-#Eliminar Stock
-def eliminar_stock(codigo_material: str):
-    """
-    Elimina por completo una línea de stock
-    """
-    try:
-        session = Session(bind=engine)
-        result = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
-
-        if result:
-            session.delete(result)
-            session.commit()
-            return f'✅ Stock de {codigo_material.upper()} eliminado correctamente'
-        else:
-            return f'⚠️ No se encontró stock para {codigo_material.upper()}'
-        
-    except Exception as e:
-        return f'❌ Ocurrio un error a la hora de Eliminar todo el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "eliminar_stock". DETALLE: {e}'
-
-#Actualizar Stock
 def actualizar_stock(codigo_material: str, cantidad: int):
-    """
-    Actualiza directamente el stock de un material (reemplaza cantidad)
-    """
-    try:
-        session = Session(bind=engine)
-        result = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
+    return _aplicar_stock(codigo_material, int(cantidad), "AJUSTE_MANUAL")
 
-        if validar_material(codigo_material) and result and cantidad > 0:
-            result.cantidad = cantidad
-            result.fecha_modificacion = datetime.today() # type: ignore
-            session.commit()
-            return f'✅ Stock de {codigo_material.upper()} actualizado a {cantidad}'
-        else:
-            return f'⚠️ No se encontró stock para {codigo_material.upper()} o el material no existe'
 
-    except Exception as e:
-        return f'❌ Ocurrio un error a la hora de Actualizar el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "actualizar_stock". DETALLE: {e}'
+def eliminar_stock(codigo_material: str):
+    return _aplicar_stock(codigo_material, 0, "AJUSTE_A_CERO", "Baja manual de stock")
 
-#Reducir Stock
-def reducir_stock(codigo_material:str, cantidad:int):
-    """
-    Reduce stock de un material existente
-    """
-    try:
-        session = Session(bind=engine)
 
-        if validar_material(codigo_material) and validar_stock(codigo_material) and cantidad > 0:
-            item = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
-
-            if item.cantidad >= cantidad:  # type: ignore
-                item.cantidad -= cantidad # type: ignore
-                item.fecha_modificacion = datetime.today() # type: ignore
-                session.commit()
-                return f'✅ Stock reducido. Nuevo stock para {codigo_material.upper()}: {item.cantidad}' # type: ignore
-            else:
-                return f'⚠️ No hay stock suficiente para {codigo_material.upper()}. Disponible: {item.cantidad}' # type: ignore
-
-        else:
-            return f'⚠️ No se encontró stock para {codigo_material.upper()}'
-
-    except Exception as e:
-        return f'❌ Ocurrio un error a la hora de Reducir el Stock para el Codigo de Material: {codigo_material.upper()}. Archivo --> CRUD - Stock - Funcion "reducir_stock". DETALLE: {e}'
-
-#Listar Stock Completo - Con Join en Material
 def listar_stock():
-    """
-    Lista el stock completo con información del material
-    """
     try:
-        session = Session(bind=engine)
-        stmt = select(Stock).join(Material, Stock.codigo_material == Material.codigo_material)
-        results = session.scalars(stmt).all()
+        return query_dataframe(
+            f"""
+            SELECT s.codigo_material AS `Código`, m.descripcion AS `Descripción`,
+                   m.color AS `Color`, m.categoria AS `Categoría`,
+                   m.subcategoria AS `Subcategoría`, s.cantidad AS `Cantidad`,
+                   s.fecha_modificacion AS `Última Modificación`
+            FROM {STOCK} s JOIN {MATERIALES} m USING(codigo_material)
+            WHERE m.activo=TRUE
+            ORDER BY m.categoria, m.subcategoria, s.codigo_material
+            """
+        )
+    except Exception as exc:
+        raise RuntimeError(f"No se pudo consultar el stock: {exc}") from exc
 
-        data = [
-            {
-                "Código": s.codigo_material,
-                "Descripción": s.material.descripcion,
-                "Color": s.material.color,
-                "Categoría": s.material.categoria,
-                "Subcategoría": s.material.subcategoria,
-                "Cantidad": s.cantidad,
-                "Última Modificación": datetime.date(s.fecha_modificacion).strftime('%d/%m/%Y')#type: ignore
-            }
-            for s in results
-        ]
 
-        return pd.DataFrame(data)
-
-    except Exception as e:
-        return f'❌ Ocurrio un error a la hora de Listar el Stock. Archivo --> CRUD - Stock - Funcion "listar_stock". DETALLE: {e}'
-
-# Obtener stock de un material puntual
 def obtener_stock(codigo_material: str):
-    """
-    Devuelve el stock de un material puntual
-    """
-    try:
-        session = Session(bind=engine)
-        stock = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
+    df = query_dataframe(
+        f"""
+        SELECT s.codigo_material AS `Código`, s.cantidad AS `Cantidad`,
+               s.fecha_modificacion AS `Última Modificación`,
+               m.descripcion AS `Descripción`, m.color AS `Color`,
+               m.categoria AS `Categoría`, m.subcategoria AS `Subcategoría`
+        FROM {STOCK} s JOIN {MATERIALES} m USING(codigo_material)
+        WHERE s.codigo_material=@codigo LIMIT 1
+        """,
+        [bigquery.ScalarQueryParameter(
+            "codigo", "STRING", codigo_material.strip().upper()
+        )],
+    )
+    return df.iloc[0].to_dict() if not df.empty else f"⚠️ No se encontró stock."
 
-        if not stock:
-            return f'⚠️ No se encontró stock para {codigo_material.upper()}'
 
-        return {
-            "Código": stock.codigo_material,
-            "Cantidad": stock.cantidad,
-            "Última Modificación": stock.fecha_modificacion,
-            "Descripción": stock.material.descripcion,
-            "Color": stock.material.color,
-            "Categoría": stock.material.categoria,
-            "Subcategoría": stock.material.subcategoria,
-        }
+def agregar_stock_bulk(_session, codigo_material: str, cantidad: int, fecha_modificacion=None):
+    return agregar_stock(codigo_material, cantidad, fecha_modificacion)
 
-    except Exception as e:
-        return f'❌ Error al obtener stock de {codigo_material.upper()}: {e}'
-    
-def agregar_stock_bulk(session: Session, codigo_material: str, cantidad: int, fecha_modificacion=datetime.today()):
-    """
-    Variante de agregar_stock optimizada para bulk (usa sesión compartida).
-    """
-    try:
-        if validar_material_with_session(session, codigo_material) and not validar_stock_with_session(session, codigo_material) and cantidad > 0:
-            nueva_entrada = Stock(
-                codigo_material=codigo_material.upper(),
-                cantidad=cantidad,
-                fecha_modificacion=fecha_modificacion
-            )
-            session.add(nueva_entrada)
-            return f'✅ Nuevo stock creado. Material: {codigo_material.upper()} / Cantidad: {cantidad}'
 
-        elif validar_material_with_session(session, codigo_material) and validar_stock_with_session(session, codigo_material):
-            return _incrementar_stock(session, codigo_material, cantidad)
+def cargar_stock_bulk(df: pd.DataFrame) -> list[str]:
+    resultados = []
+    for _, fila in df.iterrows():
+        resultados.append(agregar_stock(
+            str(fila["codigo material"]), int(fila["cantidad"])
+        ))
+    return resultados
 
-        else:
-            return f'⚠️ No existe material en la tabla Materiales con código {codigo_material.upper()}'
 
-    except Exception as e:
-        return f'❌ Error en agregar_stock_bulk para {codigo_material.upper()}: {e}'
-   
-# Validar stock usando una sesión existente
-def validar_stock_with_session(session: Session, codigo_material: str) -> bool:
-    """
-    Verifica si existe una línea de Stock para un material dado (usando sesión existente)
-    """
-    result = session.query(Stock).filter(Stock.codigo_material == codigo_material.upper()).first()
-    return bool(result)
+def validar_stock_with_session(_session, codigo_material: str) -> bool:
+    return validar_stock(codigo_material)
 
-# Validar material usando una sesión existente
-def validar_material_with_session(session: Session, codigo_material: str) -> bool:
-    """
-    Verifica si existe un Material dado (usando sesión existente)
-    """
-    result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
-    return bool(result)
 
+def validar_material_with_session(_session, codigo_material: str) -> bool:
+    return validar_material(codigo_material)

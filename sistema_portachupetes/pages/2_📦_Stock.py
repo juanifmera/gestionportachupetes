@@ -1,14 +1,12 @@
 import streamlit as st
 from datetime import datetime, timedelta
-from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_stock, obtener_stock, agregar_stock_bulk
+from crud.stock import listar_stock, agregar_stock, eliminar_stock, actualizar_stock, obtener_stock, cargar_stock_bulk
 from crud.materiales import listar_todos_materiales
 import pandas as pd
 from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 import os
 import io
 import time
-from database.engine import engine
-from sqlalchemy.orm import Session
 
 #Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
 @st.cache_data
@@ -262,48 +260,28 @@ with tabs_stock[4]:
 
     def bulk_upload_stock(df):
         try:
-            df = pd.read_excel(file)
-            df['codigo material'] = df['codigo material'].astype(str)
-
-            with Session(engine) as session:
-                resultados = []
-                contador = 0  # Para llevar la cuenta de los registros procesados
-
-                for index, item in df.iterrows():
-                    resultado = agregar_stock_bulk(session, item['codigo material'], item['cantidad'])
-                    resultados.append(resultado)
-
-                    # Mostrar en pantalla
-                    if resultado.startswith('✅'): #type:ignore
-                        st.success(resultado)
-                    elif resultado.startswith('⚠️'): #type:ignore
-                        st.warning(resultado)
-                    else:
-                        st.error(resultado)
-
-                    contador += 1
-
-                    # Cada 5 registros -> commit
-                    if contador % 5 == 0:
-                        session.commit()
-                        st.info(f"💾 Guardados {contador} registros hasta ahora.")
-
-                # Commit final para los que queden pendientes
-                session.commit()
-                st.success("✔️ Carga masiva de stock finalizada correctamente.")
-
+            resultados = cargar_stock_bulk(df)
+            for resultado in resultados:
+                if resultado.startswith('✅'):
+                    st.success(resultado)
+                elif resultado.startswith('⚠️'):
+                    st.warning(resultado)
+                else:
+                    st.error(resultado)
             return resultados
 
         except Exception as e:
             return f'❌ Error en el Bulk Request de Stock. Detalle: {e}'
 
-    if submit:
+    if submit and file:
         result = bulk_upload_stock(df)
         st.success(result)
         with st.spinner('Actualizando vista...'):
             time.sleep(10)
         st.cache_data.clear()
         st.rerun()
+    elif submit:
+        st.warning("⚠️ Primero debés cargar un archivo Excel.")
 
 ## PROXIMAS FEATURES ##    
 with tabs_stock[5]:
