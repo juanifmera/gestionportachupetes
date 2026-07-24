@@ -131,8 +131,11 @@ def agregar_stock_bulk(_session, codigo_material: str, cantidad: int, fecha_modi
 def cargar_stock_bulk(df: pd.DataFrame) -> list[str]:
     resultados = []
     for _, fila in df.iterrows():
-        resultados.append(agregar_stock(
-            str(fila["codigo material"]), int(fila["cantidad"])
+        resultados.append(_aplicar_stock(
+            str(fila["codigo material"]),
+            int(fila["cantidad"]),
+            "CARGA_MASIVA",
+            "Stock final informado mediante Excel",
         ))
     return resultados
 
