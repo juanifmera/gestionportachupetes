@@ -10,28 +10,22 @@ FROM `hitobaby.hitobaby_dataset.pedidos`;
 
 BEGIN TRANSACTION;
 
-UPDATE `hitobaby.hitobaby_dataset.materiales_pedidos` AS detalle
-SET pedido_id = (
-  SELECT id_nuevo
-  FROM mapa_pedidos
-  WHERE id_anterior = detalle.pedido_id
-)
-WHERE pedido_id IN (SELECT id_anterior FROM mapa_pedidos);
+MERGE `hitobaby.hitobaby_dataset.materiales_pedidos` AS detalle
+USING mapa_pedidos AS mapa
+ON detalle.pedido_id = mapa.id_anterior
+WHEN MATCHED THEN
+  UPDATE SET pedido_id = mapa.id_nuevo;
 
-UPDATE `hitobaby.hitobaby_dataset.movimientos_stock` AS movimiento
-SET pedido_id = (
-  SELECT id_nuevo
-  FROM mapa_pedidos
-  WHERE id_anterior = movimiento.pedido_id
-)
-WHERE pedido_id IN (SELECT id_anterior FROM mapa_pedidos);
+MERGE `hitobaby.hitobaby_dataset.movimientos_stock` AS movimiento
+USING mapa_pedidos AS mapa
+ON movimiento.pedido_id = mapa.id_anterior
+WHEN MATCHED THEN
+  UPDATE SET pedido_id = mapa.id_nuevo;
 
-UPDATE `hitobaby.hitobaby_dataset.pedidos` AS pedido
-SET id = (
-  SELECT id_nuevo
-  FROM mapa_pedidos
-  WHERE id_anterior = pedido.id
-)
-WHERE id IN (SELECT id_anterior FROM mapa_pedidos);
+MERGE `hitobaby.hitobaby_dataset.pedidos` AS pedido
+USING mapa_pedidos AS mapa
+ON pedido.id = mapa.id_anterior
+WHEN MATCHED THEN
+  UPDATE SET id = mapa.id_nuevo;
 
 COMMIT TRANSACTION;
