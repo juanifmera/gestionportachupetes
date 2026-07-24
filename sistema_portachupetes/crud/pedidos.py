@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date, datetime
 from decimal import Decimal
-import secrets
 import unicodedata
 import uuid
 
@@ -67,10 +66,11 @@ def _costo_material(codigo):
     return float(rows[0].costo) if rows else 0.0
 
 
-def _crear_pedido(cliente, telefono, fecha_pedido, estado, tipo, materiales):
+def _crear_pedido(
+    cliente, telefono, fecha_pedido, estado, tipo, materiales, precio_venta=None
+):
     if not materiales:
         return "❌ El pedido no contiene materiales."
-    pedido_id = secrets.randbits(62)
     fecha = fecha_pedido or date.today()
     if isinstance(fecha, datetime):
         fecha = fecha.date()
@@ -90,7 +90,6 @@ def _crear_pedido(cliente, telefono, fecha_pedido, estado, tipo, materiales):
         lineas.append((codigo, cantidad, costo, costo_linea))
 
     params = [
-        bigquery.ScalarQueryParameter("pedido_id", "INT64", pedido_id),
         bigquery.ScalarQueryParameter("cliente", "STRING", str(cliente).strip()),
         bigquery.ScalarQueryParameter("telefono", "STRING", str(telefono or "").strip()),
         bigquery.ScalarQueryParameter("fecha", "DATE", fecha),
@@ -98,6 +97,11 @@ def _crear_pedido(cliente, telefono, fecha_pedido, estado, tipo, materiales):
         bigquery.ScalarQueryParameter("tipo", "STRING", tipo),
         bigquery.ScalarQueryParameter(
             "costo_total", "NUMERIC", Decimal(str(costo_total))
+        ),
+        bigquery.ScalarQueryParameter(
+            "precio_venta",
+            "NUMERIC",
+            Decimal(str(precio_venta or 0)),
         ),
     ]
     bloques = []
@@ -120,26 +124,36 @@ def _crear_pedido(cliente, telefono, fecha_pedido, estado, tipo, materiales):
           WHERE codigo_material=@c{i}
         ) >= @q{i} AS 'Stock insuficiente';
         INSERT INTO {DETALLES}
-        VALUES(@d{i},@pedido_id,@c{i},@q{i},@cu{i},@ct{i},CURRENT_TIMESTAMP());
+        VALUES(@d{i},nuevo_id,@c{i},@q{i},@cu{i},@ct{i},CURRENT_TIMESTAMP());
         INSERT INTO {MOVIMIENTOS}
         SELECT @m{i},@c{i},CURRENT_TIMESTAMP(),'CONSUMO_PEDIDO',-@q{i},
-               cantidad,cantidad-@q{i},@pedido_id,'Pedido generado',SESSION_USER()
+               cantidad,cantidad-@q{i},nuevo_id,'Pedido generado',SESSION_USER()
         FROM {STOCK} WHERE codigo_material=@c{i};
         UPDATE {STOCK}
         SET cantidad=cantidad-@q{i}, fecha_modificacion=CURRENT_TIMESTAMP()
         WHERE codigo_material=@c{i};
         """)
-    query(
+    resultados = list(query(
         f"""
+        DECLARE nuevo_id INT64 DEFAULT (
+          SELECT COALESCE(MAX(id), 0) + 1 FROM {PEDIDOS}
+        );
         BEGIN TRANSACTION;
-        INSERT INTO {PEDIDOS}
-        VALUES(@pedido_id,@cliente,@telefono,@fecha,@estado,@costo_total,@tipo,
-               NULL,CURRENT_TIMESTAMP(),CURRENT_TIMESTAMP());
+        INSERT INTO {PEDIDOS} (
+          id, cliente, telefono, fecha_pedido, estado, costo_total,
+          precio_venta, tipo, comentarios, fecha_creacion, fecha_actualizacion
+        )
+        VALUES(
+          nuevo_id,@cliente,@telefono,@fecha,@estado,@costo_total,
+          @precio_venta,@tipo,NULL,CURRENT_TIMESTAMP(),CURRENT_TIMESTAMP()
+        );
         {''.join(bloques)}
         COMMIT TRANSACTION;
+        SELECT nuevo_id AS pedido_id;
         """,
         params,
-    )
+    ))
+    pedido_id = int(resultados[0].pedido_id)
     return (
         f"✅ Pedido generado con éxito para {str(cliente).capitalize()} "
         f"(ID: {pedido_id}) - Costo Total: ${int(costo_total):,}"
@@ -148,7 +162,7 @@ def _crear_pedido(cliente, telefono, fecha_pedido, estado, tipo, materiales):
 
 def crear_pedido(
     cliente: str, materiales_portachupete: dict, estado="En proceso",
-    fecha_pedido=None, telefono="", tipo="minorista",
+    fecha_pedido=None, telefono="", tipo="minorista", precio_venta=None,
 ):
     try:
         validacion = verificar_confeccion_portachupetes(materiales_portachupete)
@@ -156,7 +170,7 @@ def crear_pedido(
             return f"❌ Stock insuficiente: {validacion['faltantes']}"
         return _crear_pedido(
             cliente, telefono, fecha_pedido, estado, tipo,
-            obtener_materiales_utilizados(materiales_portachupete),
+            obtener_materiales_utilizados(materiales_portachupete), precio_venta,
         )
     except Exception as exc:
         return f"❌ Error al generar pedido: {exc}"
@@ -164,7 +178,7 @@ def crear_pedido(
 
 def crear_pedido_mayorista(
     cliente: str, materiales: dict, estado="En proceso",
-    fecha_pedido=None, tipo="mayorista", telefono="",
+    fecha_pedido=None, tipo="mayorista", telefono="", precio_venta=None,
 ):
     try:
         validacion = verificar_confeccion_pedido_mayorista(materiales)
@@ -172,7 +186,7 @@ def crear_pedido_mayorista(
             return f"❌ Stock insuficiente: {validacion['faltantes']}"
         return _crear_pedido(
             cliente, telefono, fecha_pedido, estado, tipo,
-            obtener_materiales_mayorista(materiales),
+            obtener_materiales_mayorista(materiales), precio_venta,
         )
     except Exception as exc:
         return f"❌ Error al generar pedido: {exc}"
@@ -184,7 +198,7 @@ def listar_todos_pedidos():
             f"""
             SELECT id AS ID, cliente AS Cliente, telefono AS Telefono,
                    fecha_pedido AS `Fecha Creación`, estado AS Estado,
-                   costo_total AS `Costo Total`
+                   costo_total AS `Costo Total`, precio_venta AS `Precio Venta`
             FROM {PEDIDOS} ORDER BY fecha_pedido DESC, fecha_creacion DESC
             """
         )
@@ -197,7 +211,7 @@ def obtener_pedido(id: int):
         f"""
         SELECT id AS ID, cliente AS Cliente, estado AS Estado,
                fecha_pedido AS `Fecha Pedido`, telefono AS `Teléfono`,
-               costo_total AS `Costo Total`
+               costo_total AS `Costo Total`, precio_venta AS `Precio Venta`
         FROM {PEDIDOS} WHERE id=@id LIMIT 1
         """,
         [bigquery.ScalarQueryParameter("id", "INT64", int(id))],
@@ -274,7 +288,7 @@ def actualizar_varios_campos_pedido(id: int, cambios: dict) -> str:
     permitidos = {
         "cliente": "cliente", "telefono": "telefono",
         "fecha_pedido": "fecha_pedido", "costo_total": "costo_total",
-        "comentarios": "comentarios",
+        "precio_venta": "precio_venta", "comentarios": "comentarios",
     }
     pedido = obtener_pedido(id)
     if not isinstance(pedido, dict):
@@ -282,12 +296,16 @@ def actualizar_varios_campos_pedido(id: int, cambios: dict) -> str:
     if pedido["Estado"] in ("Cancelado", "Terminado"):
         return f"⚠️ No se puede modificar un pedido {pedido['Estado']}."
     partes, params = [], [bigquery.ScalarQueryParameter("id", "INT64", int(id))]
-    tipos = {"fecha_pedido": "DATE", "costo_total": "NUMERIC"}
+    tipos = {
+        "fecha_pedido": "DATE",
+        "costo_total": "NUMERIC",
+        "precio_venta": "NUMERIC",
+    }
     for i, (campo, valor) in enumerate(cambios.items()):
         if campo not in permitidos:
             continue
         partes.append(f"{permitidos[campo]}=@v{i}")
-        if campo == "costo_total":
+        if campo in ("costo_total", "precio_venta"):
             valor = Decimal(str(valor or 0))
         params.append(bigquery.ScalarQueryParameter(f"v{i}", tipos.get(campo, "STRING"), valor))
     if not partes:

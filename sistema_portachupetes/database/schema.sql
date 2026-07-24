@@ -28,6 +28,7 @@ CREATE OR REPLACE TABLE `hitobaby.hitobaby_dataset.pedidos` (
   fecha_pedido DATE NOT NULL,
   estado STRING NOT NULL,
   costo_total NUMERIC,
+  precio_venta NUMERIC,
   tipo STRING NOT NULL,
   comentarios STRING,
   fecha_creacion TIMESTAMP NOT NULL,

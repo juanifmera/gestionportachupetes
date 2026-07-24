@@ -51,3 +51,11 @@ python -c "import streamlit_authenticator as stauth; print(stauth.Hasher.hash('T
 
 Pegar el resultado en `password` y reemplazar también la clave de la cookie.
 `secrets.toml` está ignorado por Git y nunca debe publicarse.
+
+## Migraciones incrementales
+
+Si las tablas ya fueron creadas y contienen información, no vuelvas a ejecutar
+`schema.sql`. Ejecutá, en orden, los archivos nuevos de `database/migrations/`.
+
+La migración `002_pedidos_secuenciales_y_precio.sql` conserva los pedidos,
+los renumera desde 1, actualiza sus relaciones y agrega el precio final de venta.

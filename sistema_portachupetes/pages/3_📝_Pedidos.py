@@ -122,6 +122,9 @@ if accion == "Nuevo":
                     fecha = c2.date_input(
                         "Fecha", value=datetime.today(), format="DD/MM/YYYY"
                     )
+                    precio_venta = c2.number_input(
+                        "Precio final de venta", min_value=0.0, value=0.0, step=100.0
+                    )
                     broche = st.selectbox("Broche / base *", broches)
 
                     dijes_normales = [
@@ -177,6 +180,7 @@ if accion == "Nuevo":
                             },
                             telefono=telefono,
                             fecha_pedido=fecha,
+                            precio_venta=precio_venta,
                         ))
 
 elif accion == "Mayorista":
@@ -195,6 +199,9 @@ elif accion == "Mayorista":
             telefono = c1.text_input("Teléfono")
             fecha = c2.date_input(
                 "Fecha", value=datetime.today(), format="DD/MM/YYYY"
+            )
+            precio_venta = c2.number_input(
+                "Precio final de venta", min_value=0.0, value=0.0, step=100.0
             )
             seleccionados = []
             for i in range(int(cantidad_lineas)):
@@ -239,7 +246,11 @@ elif accion == "Mayorista":
                     elif categoria == "Lenteja":
                         por_categoria["lentejas"].append(item)
                 finalizar(crear_pedido_mayorista(
-                    cliente, por_categoria, telefono=telefono, fecha_pedido=fecha
+                    cliente,
+                    por_categoria,
+                    telefono=telefono,
+                    fecha_pedido=fecha,
+                    precio_venta=precio_venta,
                 ))
 
 elif accion == "Gestionar":
@@ -253,17 +264,19 @@ elif accion == "Gestionar":
         pedido_id = int(st.selectbox(
             "Pedido", sorted(activos["ID"].tolist(), reverse=True)
         ))
-        c1, c2 = st.columns(2)
-        if c1.button(
+        if st.button(
             "Marcar como terminado", type="primary", use_container_width=True
         ):
             finalizar(terminar_pedido(pedido_id))
-        confirmar = c2.checkbox("Confirmar cancelación")
-        if c2.button("Cancelar y devolver stock", use_container_width=True):
-            if confirmar:
-                finalizar(cancelar_pedido(pedido_id))
-            else:
-                st.warning("Confirmá la cancelación.")
+        c1, c2 = st.columns(2)
+        with c1:
+            confirmar = st.checkbox("Confirmar cancelación")
+        with c2:
+            if st.button("Cancelar y devolver stock", use_container_width=True):
+                if confirmar:
+                    finalizar(cancelar_pedido(pedido_id))
+                else:
+                    st.warning("Confirmá la cancelación.")
 
 elif accion == "Actualizar":
     st.subheader("✏️ Actualizar pedido", divider="rainbow")
@@ -283,6 +296,11 @@ elif accion == "Actualizar":
             costo = st.number_input(
                 "Costo total", min_value=0.0, value=float(datos["Costo Total"] or 0)
             )
+            precio_venta = st.number_input(
+                "Precio final de venta",
+                min_value=0.0,
+                value=float(datos["Precio Venta"] or 0),
+            )
             enviar = st.form_submit_button(
                 "Guardar cambios", type="primary", use_container_width=True
             )
@@ -292,6 +310,7 @@ elif accion == "Actualizar":
                 "telefono": telefono,
                 "fecha_pedido": fecha,
                 "costo_total": costo,
+                "precio_venta": precio_venta,
             }))
 
 elif accion == "Listar":
@@ -324,17 +343,26 @@ elif accion == "Detalle":
             "Pedido", sorted(pedidos["ID"].tolist(), reverse=True)
         ))
         datos = obtener_pedido(pedido_id)
-        st.write({
+        costo_total = float(datos["Costo Total"] or 0)
+        precio_estimado = costo_total * 2.75
+        precio_venta = float(datos["Precio Venta"] or 0)
+        st.json({
+            "ID Pedido": pedido_id,
             "Cliente": datos["Cliente"],
             "Teléfono": datos["Teléfono"],
-            "Fecha": datos["Fecha Pedido"],
+            "Fecha": str(datos["Fecha Pedido"]),
             "Estado": datos["Estado"],
-            "Costo total": float(datos["Costo Total"] or 0),
+            "Costo Total": costo_total,
+            "Precio Estimado Venta": precio_estimado,
+            "Precio Final de Venta": precio_venta,
+            "Diferencia vs Estimado": precio_venta - precio_estimado,
         })
         detalles = listar_materiales_pedido(pedido_id)
         if detalles.empty:
             st.info("Este pedido no tiene materiales asociados.")
         else:
-            materiales = cargar_materiales()
+            materiales = cargar_materiales()[[
+                "Código", "Descripción", "Color", "Categoría", "Subcategoría"
+            ]]
             detalle = detalles.merge(materiales, on="Código", how="left")
             st.dataframe(detalle, use_container_width=True)
