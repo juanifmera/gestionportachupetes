@@ -64,16 +64,31 @@ def agregar_material(
         ]
         query(
             f"""
-            INSERT INTO {T}
-            (codigo_material, descripcion, color, categoria, subcategoria,
-             fecha_ingreso, comentarios, costo_unitario, activo,
-             fecha_creacion, fecha_actualizacion)
-            SELECT @codigo, @descripcion, @color, @categoria, @subcategoria,
-                   @fecha, @comentarios, @costo, TRUE,
-                   CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
-            WHERE NOT EXISTS (
-              SELECT 1 FROM {T} WHERE codigo_material = @codigo
-            )
+            MERGE {T} AS destino
+            USING (
+              SELECT
+                @codigo AS codigo_material,
+                @descripcion AS descripcion,
+                @color AS color,
+                @categoria AS categoria,
+                @subcategoria AS subcategoria,
+                @fecha AS fecha_ingreso,
+                @comentarios AS comentarios,
+                @costo AS costo_unitario
+            ) AS origen
+            ON destino.codigo_material = origen.codigo_material
+            WHEN NOT MATCHED THEN
+              INSERT (
+                codigo_material, descripcion, color, categoria, subcategoria,
+                fecha_ingreso, comentarios, costo_unitario, activo,
+                fecha_creacion, fecha_actualizacion
+              )
+              VALUES (
+                origen.codigo_material, origen.descripcion, origen.color,
+                origen.categoria, origen.subcategoria, origen.fecha_ingreso,
+                origen.comentarios, origen.costo_unitario, TRUE,
+                CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+              )
             """,
             params,
         )
