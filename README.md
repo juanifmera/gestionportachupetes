@@ -33,3 +33,21 @@ BQ_LOCATION
 ```
 
 No se deben guardar claves JSON ni secretos en el repositorio.
+
+## Usuarios de la aplicación
+
+Copiar la plantilla privada:
+
+```powershell
+cd sistema_portachupetes
+copy .streamlit\secrets.example.toml .streamlit\secrets.toml
+```
+
+Generar el hash de la contraseña elegida:
+
+```powershell
+python -c "import streamlit_authenticator as stauth; print(stauth.Hasher.hash('TU_CONTRASEÑA'))"
+```
+
+Pegar el resultado en `password` y reemplazar también la clave de la cookie.
+`secrets.toml` está ignorado por Git y nunca debe publicarse.
