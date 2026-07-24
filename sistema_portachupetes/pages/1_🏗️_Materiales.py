@@ -1,303 +1,191 @@
-import streamlit as st
-from crud.materiales import agregar_material, listar_todos_materiales, eliminar_material, actualizar_varios_campos, obtener_material, cargar_materiales_bulk
-from datetime import datetime, timedelta
-import pandas as pd
+from datetime import datetime
 import io
-from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
 import os
-import time
 
-#Genero una funcion para listar el material y quede cacheado para no perder tiempo cuando quiero mirar datos previamente cargados. Evito pegarle tanto a la base de datos
-@st.cache_data
+import pandas as pd
+import streamlit as st
+
+from crud.materiales import (
+    actualizar_varios_campos,
+    agregar_material,
+    cargar_materiales_bulk,
+    eliminar_material,
+    listar_todos_materiales,
+    obtener_material,
+)
+from ui.utils.utils import proteger_pagina
+
+CATEGORIAS = [
+    "Broche", "Llavero", "Identificador", "Letra", "Bolita",
+    "Lenteja", "Dije", "Bolsa", "Lapicera",
+]
+
+
+@st.cache_data(ttl=30, show_spinner="Consultando materiales...")
 def cargar_materiales():
     return listar_todos_materiales()
 
-proteger_pagina()
 
-st.title('Materiales :crown:')
+def finalizar(resultado):
+    if resultado.startswith("✅"):
+        st.success(resultado)
+        st.cache_data.clear()
+    elif resultado.startswith("⚠️"):
+        st.warning(resultado)
+    else:
+        st.error(resultado)
+
+
+proteger_pagina()
+st.title("Materiales 👑")
 st.divider()
 
-tabs_materiales = st.tabs(['Agregar Material :smile:', 'Eliminar Material :angry:', 'Actualizar Material :zipper_mouth_face:', 'Listar Materiales :alien:', 'Bulk Request :skull:','Proximamente ... :dizzy_face:'])
+accion = st.radio(
+    "Acción",
+    ["Agregar", "Eliminar", "Actualizar", "Listar", "Carga Excel"],
+    horizontal=True,
+    label_visibility="collapsed",
+)
 
-## AGREGAR MATERIAL ##
-with tabs_materiales[0]:
-    st.subheader('➕ Agregar Material', divider='rainbow')
-    st.write('Para agregar un material deberas completar el forms que se encuentra debajo:')
-
-    with st.form('agregar_material', True):
-
+if accion == "Agregar":
+    st.subheader("➕ Agregar material", divider="rainbow")
+    with st.form("agregar_material", clear_on_submit=True):
         col1, col2 = st.columns(2)
-
         with col1:
-            codigo_material = st.text_input('Colocar el codigo del Material', placeholder='EJ: BBLA, LAZU, SBLA')
-
-            color = st.text_input('Agregar el color del Material', placeholder='EJ: Rojo, Azul, Blanco')
-
-            fecha_ingreso = st.date_input('Seleccion Fecha de Ingreso', value=datetime.today(), format='DD/MM/YYYY')
-
-            comentarios = st.text_area('Colocar comentarios opcionales al Material')
-
+            codigo = st.text_input("Código del material", placeholder="Ej: BBLA12")
+            color = st.text_input("Color", placeholder="Ej: Blanco")
+            fecha = st.date_input(
+                "Fecha de ingreso", value=datetime.today(), format="DD/MM/YYYY"
+            )
+            comentarios = st.text_area("Comentarios opcionales")
         with col2:
-            descripcion = st.text_input('Agregar breve descripcion del Material', placeholder='EJ: Broche de Oso de Silicona Blanco')
+            descripcion = st.text_input(
+                "Descripción", placeholder="Ej: Bolita blanca de 12 mm"
+            )
+            categoria = st.selectbox("Categoría", CATEGORIAS)
+            subcategoria = st.radio(
+                "Subcategoría", ["Normal", "Especial"], horizontal=True
+            )
+            costo = st.number_input(
+                "Costo unitario promedio", min_value=0.0, value=500.0, step=10.0
+            )
+        enviar = st.form_submit_button(
+            "Agregar material", type="primary", use_container_width=True
+        )
 
-            categoria = st.selectbox('Agregar Categoria', ['Broche', 'Llavero', 'Identificador', 'Letra', 'Bolita', 'Lenteja', 'Dije', 'Bolsa', 'Lapicera'])
-
-            subcategoria = st.radio('Agregar una Subcategoria', ['Normal', 'Especial'], horizontal=True)
-
-            costo_unitario = st.number_input('Agregar el costo Unitario Promedio del Material', min_value=1, value=500)
-
-
-        submit = st.form_submit_button('Agregar Material', icon='🚨', type='primary', width='stretch')
-
-        #Verifico que todos los campos hayan sido completados con exito
-        if submit:
-            if not codigo_material or not descripcion or not color or not categoria or not subcategoria or not fecha_ingreso:
-                st.error("⚠️ Todos los campos son obligatorios, excepto los comentarios y el Costo Unitario Promedio.")
-            else:
-                resultado = agregar_material(
-                    codigo_material=codigo_material,
-                    descripcion=descripcion,
-                    color=color,
-                    categoria=categoria,
-                    subcategoria=subcategoria,
-                    comentarios=comentarios,
-                    costo_unitario=costo_unitario,
-                    fecha_ingreso=fecha_ingreso # type: ignore
-                )
-
-                #Si el resultado comienza con Cruz, significa que algo salio mal, por lo tanto, error
-                if resultado.startswith("❌"):
-                    st.error(resultado)
-
-                elif resultado.startswith('⚠️'):
-                    st.warning(resultado)
-                #Caso contrario, successfull
-                else:
-                    mostrar_exito_y_reiniciar(resultado)
-                    
-## ELIMINAR MATERIAL ##
-with tabs_materiales[1]:
-
-    st.subheader('🗑️ Eliminar Material', divider='rainbow')
-    st.write('Revisá los materiales disponibles y seleccioná uno para eliminar.')
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    df_original = cargar_materiales()
-
-    with col1:
-        filtro_categoria = st.selectbox('Filtrar por Categoría', ['Todas'] + sorted(df_original['Categoría'].unique())) # type: ignore
-
-    with col2:
-        filtro_subcategoria = st.selectbox('Filtrar por Subcategoría', ['Todas'] + sorted(df_original['Subcategoría'].unique())) # type: ignore
-
-    with col3:
-        filtro_color = st.selectbox('Filtrar por Color', ['Todos'] + sorted(df_original['Color'].unique())) # type: ignore
-
-    with col4:
-        buscar_codigo = st.text_input('Buscar por código', placeholder='EJ: BAZU')
-
-    df_filtrado = df_original.copy() # type: ignore
-
-    if filtro_categoria != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['Categoría'] == filtro_categoria]
-
-    if filtro_subcategoria != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['Subcategoría'] == filtro_subcategoria]
-
-    if filtro_color != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['Color'] == filtro_color]
-
-    if buscar_codigo:
-        df_filtrado = df_filtrado[df_filtrado['Código'].str.contains(buscar_codigo.upper(), case=False)]
-
-    st.dataframe(df_filtrado, width='stretch')
-
-    with st.form('form_eliminar_material', border=False):
-        if not df_filtrado.empty:
-            material_a_eliminar = st.selectbox('Seleccionar el material a eliminar', sorted(df_filtrado['Código'].unique()))
-
-            confirmar = st.checkbox('⚠️ Confirmo que deseo eliminar este material permanentemente', value=False)
-            submit = st.form_submit_button("Eliminar Material", type="primary", width='stretch', icon="💣")
-
-            if submit:
-                if not confirmar:
-                    st.warning("⚠️ Debes confirmar la eliminación marcando la casilla.")
-                    st.stop()
-
-                resultado = eliminar_material(material_a_eliminar) #type:ignore
-                mostrar_exito_y_reiniciar(resultado)
+    if enviar:
+        if not all((codigo, descripcion, color, categoria, subcategoria, fecha)):
+            st.error("⚠️ Completá todos los campos obligatorios.")
         else:
-            submit = st.form_submit_button("Eliminar Material", type="primary", width='stretch', icon="💣")
-            st.warning("❌ No hay materiales disponibles con los filtros seleccionados.")
-            
-## ACTUALIZAR MATERIAL ##
-with tabs_materiales[2]:
-    st.subheader('✏️ Actualizar Material', divider='rainbow')
-    st.write('Seleccioná un material y modificá los campos que desees.')
+            finalizar(agregar_material(
+                codigo, descripcion, color, categoria, subcategoria,
+                costo, comentarios, fecha,
+            ))
 
-    with st.spinner('Cargando Registros ...'):
-        df = cargar_materiales()
-
-    if df.empty: # type: ignore
-        st.warning("❌ No hay materiales para editar.")
-        st.stop()
-
-    codigo_seleccionado = st.selectbox('Seleccionar material a editar', sorted(df['Código'].unique())) # type: ignore
-
-    material = obtener_material(codigo_seleccionado) # type: ignore
-
-    with st.form('form_actualizar_material', border=True):
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            descripcion = st.text_input("Descripción", value=material["Descripción"]) # type: ignore
-            color = st.text_input("Color", value=material["Color"])# type: ignore
-            categorias = ["Broche", "Llavero", "Identificador", "Letra", "Bolita", "Lenteja", "Dije", "Bolsa", "Lapicera"]
-            categoria_actual = material["Categoría"] if material["Categoría"] in categorias else "Dije" # type: ignore
-            categoria = st.selectbox("Categoría", categorias, index=categorias.index(categoria_actual))
-        
-        with col2:
-            subcategoria = st.radio("Subcategoría", ["Normal", "Especial"], horizontal=True, index=["Normal", "Especial"].index(material["Subcategoría"]))# type: ignore
-            comentarios = st.text_area("Comentarios", value=material["Comentarios"])# type: ignore
-            costo_unitario = st.number_input('Costo Unitario', value=material['Costo Unitario'] or 0)# type: ignore
-
-        submit = st.form_submit_button(":zap: Actualizar Material", type="primary", width='stretch')
-
-        if submit:
-            cambios = {}
-            if descripcion != material["Descripción"]:# type: ignore
-                cambios["descripcion"] = descripcion
-            if color != material["Color"]:# type: ignore
-                cambios["color"] = color
-            if categoria != material["Categoría"]:# type: ignore
-                cambios["categoria"] = categoria
-            if subcategoria != material["Subcategoría"]:# type: ignore
-                cambios["subcategoria"] = subcategoria
-            if costo_unitario != material['Costo Unitario']:# type: ignore
-                cambios['costo_unitario'] = costo_unitario
-            if comentarios != material["Comentarios"]:# type: ignore
-                cambios["comentarios"] = comentarios
-            if not cambios:
-                st.info("No se detectaron cambios. Nada que actualizar.")
+elif accion == "Eliminar":
+    st.subheader("🗑️ Dar de baja un material", divider="rainbow")
+    df = cargar_materiales()
+    if df.empty:
+        st.info("Todavía no hay materiales cargados.")
+    else:
+        st.dataframe(df, use_container_width=True)
+        codigo = st.selectbox("Material", sorted(df["Código"].unique()))
+        confirmar = st.checkbox("Confirmo la baja del material")
+        if st.button("Dar de baja", type="primary", use_container_width=True):
+            if confirmar:
+                finalizar(eliminar_material(codigo))
             else:
-                resultado = actualizar_varios_campos(codigo_seleccionado, cambios) # type: ignore
-                mostrar_exito_y_reiniciar(resultado)
+                st.warning("Marcá la confirmación antes de continuar.")
 
-## LISTAR MATERIAL ##
-with tabs_materiales[3]:
-    st.subheader('📰 Listar Material', divider='rainbow')
-    st.write('Revisá los materiales disponibles.')
+elif accion == "Actualizar":
+    st.subheader("✏️ Actualizar material", divider="rainbow")
+    df = cargar_materiales()
+    if df.empty:
+        st.info("Todavía no hay materiales cargados.")
+    else:
+        codigo = st.selectbox("Material", sorted(df["Código"].unique()))
+        material = obtener_material(codigo)
+        categoria_actual = (
+            material["Categoría"] if material["Categoría"] in CATEGORIAS else "Dije"
+        )
+        with st.form("actualizar_material"):
+            descripcion = st.text_input("Descripción", material["Descripción"])
+            color = st.text_input("Color", material["Color"])
+            categoria = st.selectbox(
+                "Categoría", CATEGORIAS, index=CATEGORIAS.index(categoria_actual)
+            )
+            subcategoria = st.radio(
+                "Subcategoría",
+                ["Normal", "Especial"],
+                index=["Normal", "Especial"].index(material["Subcategoría"]),
+                horizontal=True,
+            )
+            costo = st.number_input(
+                "Costo unitario", min_value=0.0,
+                value=float(material["Costo Unitario"] or 0),
+            )
+            comentarios = st.text_area(
+                "Comentarios", value=material["Comentarios"] or ""
+            )
+            enviar = st.form_submit_button(
+                "Guardar cambios", type="primary", use_container_width=True
+            )
+        if enviar:
+            finalizar(actualizar_varios_campos(codigo, {
+                "descripcion": descripcion,
+                "color": color,
+                "categoria": categoria,
+                "subcategoria": subcategoria,
+                "costo_unitario": costo,
+                "comentarios": comentarios,
+            }))
 
-    col1, col2, col3, col4 = st.columns(4)
+elif accion == "Listar":
+    st.subheader("📰 Materiales disponibles", divider="rainbow")
+    df = cargar_materiales()
+    if df.empty:
+        st.info("Todavía no hay materiales cargados.")
+    else:
+        col1, col2, col3 = st.columns(3)
+        categoria = col1.selectbox(
+            "Categoría", ["Todas"] + sorted(df["Categoría"].dropna().unique())
+        )
+        color = col2.selectbox(
+            "Color", ["Todos"] + sorted(df["Color"].dropna().unique())
+        )
+        codigo = col3.text_input("Buscar código")
+        filtrado = df.copy()
+        if categoria != "Todas":
+            filtrado = filtrado[filtrado["Categoría"] == categoria]
+        if color != "Todos":
+            filtrado = filtrado[filtrado["Color"] == color]
+        if codigo:
+            filtrado = filtrado[
+                filtrado["Código"].str.contains(codigo.strip(), case=False)
+            ]
+        st.dataframe(filtrado, use_container_width=True)
+        st.caption(f"{len(filtrado)} materiales encontrados.")
 
-    df_original = cargar_materiales()
-
-    with col1:
-        filtro_categoria = st.selectbox('Filtrar por Categoría', key='filtro_cat', options=['Todas'] + sorted(df_original['Categoría'].unique())) # type: ignore
-
-    with col2:
-        filtro_subcategoria = st.selectbox('Filtrar por Subcategoría', key='filtro_sub', options=['Todas'] + sorted(df_original['Subcategoría'].unique())) # type: ignore
-
-    with col3:
-        filtro_color = st.selectbox('Filtrar por Color', key='filtro_col', options=['Todos'] + sorted(df_original['Color'].unique())) # type: ignore
-
-    with col4:
-        buscar_codigo = st.text_input('Buscar por código', key='filtro_cod', placeholder='EJ: BAZU')
-
-    df_filtrado = df_original.copy() # type: ignore
-
-    if filtro_categoria != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['Categoría'] == filtro_categoria]
-
-    if filtro_subcategoria != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['Subcategoría'] == filtro_subcategoria]
-
-    if filtro_color != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['Color'] == filtro_color]
-
-    if buscar_codigo:
-        df_filtrado = df_filtrado[df_filtrado['Código'].str.contains(buscar_codigo.upper(), case=False)]
-
-    # Si el df esta vacio
-    if df_filtrado.empty:
-        st.dataframe(df_filtrado, width='stretch')
-        st.warning("❌ No hay materiales disponibles con los filtros seleccionados.")
-    
-    # Si el df tiene valores
-    if not df_filtrado.empty: # type: ignore
-        st.dataframe(df_filtrado, width='stretch')
-        st.info(f'Se encontraron {df_filtrado.shape[0]} registros para su busqueda')
-
-## BULK REQUEST ##
-with tabs_materiales[4]:
-    st.subheader('🕵 Bulk Request', divider='rainbow')
-    st.write('Realiza una carga masiva de Materiales en una sola acción.')
-
-    st.markdown("### Primer paso: Descargar y Completar el Template")
-    ruta_base = os.path.dirname(__file__)
-    ruta_tempate_materiales = os.path.join(ruta_base,'..', "ui", "static", "Template Materiales - Udibaby.xlsx")
-    df_template = pd.read_excel(ruta_tempate_materiales)
-
-    def convert_to_download(df):
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Materiales')
-        return output.getvalue()
-
+elif accion == "Carga Excel":
+    st.subheader("📥 Carga masiva de materiales", divider="rainbow")
+    ruta = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "ui", "static",
+        "Template Materiales - Udibaby.xlsx",
+    ))
+    plantilla = pd.read_excel(ruta)
+    salida = io.BytesIO()
+    with pd.ExcelWriter(salida, engine="xlsxwriter") as writer:
+        plantilla.to_excel(writer, index=False, sheet_name="Materiales")
     st.download_button(
-        label='📥 Descargar Template para cargar materiales',
-        data=convert_to_download(df_template),
-        file_name='Template Materiales - Udibaby.xlsx',
-        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        type='primary',
-        use_container_width=True
+        "Descargar plantilla", salida.getvalue(),
+        file_name="Template Materiales - Hito.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
     )
-
-    st.divider()
-
-    st.markdown("### Segundo paso: Cargar el template y validar la información")
-    st.markdown("Colocá el Template aquí 👇")
-    file = st.file_uploader("📤 Subí tu archivo Excel", type=["xlsx"])
-
-    if file:
-        try:
-            df = pd.read_excel(file)
-            st.success("✅ Archivo cargado correctamente")
-            st.dataframe(df)
-        except Exception as e:
-            st.error(f"❌ Error al leer el archivo: {e}")
-
-    st.divider()
-
-    st.markdown("### Tercer paso: Intenta realizar el Bulk Request para Materiales")
-    st.markdown("En caso de que hayas colocado bien toda la informacion en el template, los materiales deberian cargarse a la base de datos. En caso de ser incorrecto, deberas revisar que todos los campos del template esten completos. RECORDA no modificar la estructura del archivo.")
-
-    submit = st.button('Subir Bulk Request!!!', type='primary', width='stretch')
-
-    # Funcion para cargar Varios Materiales #
-    def bulk_upload_materiales(df):
-        resultados = cargar_materiales_bulk(df)
-        for resultado in resultados:
-            if resultado.startswith('✅'):
-                st.success(resultado)
-            elif resultado.startswith('⚠️'):
-                st.warning(resultado)
-            else:
-                st.error(resultado)
-        return "✔️ Carga masiva finalizada."
-
-    if submit and file:
-        result = bulk_upload_materiales(df)
-        st.success(result)
-        with st.spinner('Porfavor verificar la carga de datos ..'):
-            time.sleep(10)
-        st.cache_data.clear()
-        st.rerun()
-    elif submit:
-        st.warning("⚠️ Primero debés cargar un archivo Excel.")
-
-## PROXIMAS FEATURES ##
-with tabs_materiales[5]:
-    st.info(':warning: Mas Acciones seran Incorporadas en breve!!! (Llevar Ideas a Juan Mera)')
+    archivo = st.file_uploader("Subí el Excel completo", type=["xlsx"])
+    if archivo:
+        df = pd.read_excel(archivo)
+        st.dataframe(df, use_container_width=True)
+        if st.button("Cargar materiales", type="primary", use_container_width=True):
+            for resultado in cargar_materiales_bulk(df):
+                finalizar(resultado)
