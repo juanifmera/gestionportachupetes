@@ -4,7 +4,7 @@ import base64
 import os
 from collections.abc import Mapping
 
-st.set_page_config(layout='wide', page_title='Hito Gestión', page_icon=':baby_bottle:')
+st.set_page_config(layout='wide', page_title='Hitobaby', page_icon=':baby_bottle:')
 
 def convertir_a_dict(obj):
     if isinstance(obj, Mapping):
@@ -53,12 +53,12 @@ username = st.session_state.get("username")
 # Control de acceso
 if authentication_status:
     
-    st.sidebar.title(f'Hito - {username}')
+    st.sidebar.title(f'HitoBaby - {username}')
     st.sidebar.success(f"Bienvenido, {name} 👋")
     st.sidebar.info("Navegá entre las páginas desde la barra lateral")
     authenticator.logout("Cerrar sesión", "sidebar")
 
-    st.title('Hito - Sistema de Gestión 👶')
+    st.title(':dog: HitoBaby - Sistema de Control de Gestión 👶')
     st.divider()
     st.subheader('Bienvenido al Sistema de Control de Gestion. En este sistema vas a poder:')
     st.markdown(

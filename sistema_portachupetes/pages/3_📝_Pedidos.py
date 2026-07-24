@@ -125,7 +125,7 @@ if accion == "Nuevo":
                     precio_venta = c2.number_input(
                         "Precio final de venta", min_value=0.0, value=0.0, step=100.0
                     )
-                    broche = st.selectbox("Broche / base *", broches)
+                    broche = c1.selectbox("Broche / base *", broches)
 
                     dijes_normales = [
                         {"codigo": st.selectbox(
