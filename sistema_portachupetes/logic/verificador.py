@@ -1,151 +1,57 @@
-from sqlalchemy.orm import Session
-from database.engine import engine
-from database.models import Stock
+"""Validaciones de disponibilidad independientes de la interfaz."""
+
+from collections import Counter
+
+from crud.stock import obtener_stock
 
 
-def verificar_confeccion_portachupetes(data: dict) -> dict:  # type: ignore
-    """
-    Valida si hay suficiente stock para confeccionar un portachupetes según los materiales solicitados.
-    Recibe un diccionario con los siguientes posibles campos:
-        - broche: str (obligatorio)
-        - nombre: str (opcional)
-        - dijes_normales: list[{'codigo': str}]
-        - dijes_especiales: list[{'codigo': str}]
-        - bolitas: list[{'codigo': str, 'cantidad': int}]
-        - lentejas: list[{'codigo': str, 'cantidad': int}]
-    Devuelve un diccionario con:
-        - 'success': bool
-        - 'faltantes': list[str]
-        - 'detalles': list[str]
-    """
-    try:
-        session = Session(bind=engine)
-
-        faltantes = []
-        detalles = []
-        success = True
-
-        def verificar_material(codigo: str, cantidad_requerida: int, etiqueta: str):
-            nonlocal success
-            material = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
-
-            if material:
-                if material.cantidad >= cantidad_requerida:
-                    detalles.append(f"{codigo.upper()}: OK ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
-                else:
-                    faltantes.append(f"{codigo.upper()}: Stock insuficiente ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
-                    success = False
-            else:
-                faltantes.append(f"{codigo.upper()}: No encontrado en la base de datos")
-                success = False
-
-        # Broche (obligatorio)
-        if "broche" in data:
-            verificar_material(data["broche"], 1, "Broche")
+def _validar(requeridos):
+    faltantes, detalles = [], []
+    agrupados = Counter()
+    for codigo, cantidad in requeridos:
+        codigo = str(codigo).strip().upper()
+        if codigo and int(cantidad) > 0:
+            agrupados[codigo] += int(cantidad)
+    for codigo, cantidad in agrupados.items():
+        stock = obtener_stock(codigo)
+        disponible = int(stock["Cantidad"]) if isinstance(stock, dict) else 0
+        if disponible < cantidad:
+            faltantes.append(
+                f"{codigo}: stock insuficiente ({disponible} disponibles, "
+                f"se requieren {cantidad})"
+            )
         else:
-            faltantes.append("Falta seleccionar un broche")
-            success = False
+            detalles.append(
+                f"{codigo}: OK ({disponible} disponibles, se requieren {cantidad})"
+            )
+    return {
+        "success": not faltantes,
+        "faltantes": faltantes,
+        "detalles": detalles,
+    }
 
-        # Nombre (opcional)
-        if "nombre" in data:
-            nombre = data["nombre"].upper()
-            letras_recuento = {}
-            for letra in nombre:
-                letras_recuento[letra] = letras_recuento.get(letra, 0) + 1
 
-            for letra, cantidad in letras_recuento.items():
-                verificar_material(letra, cantidad, f"Letra '{letra.upper()}'")
+def verificar_confeccion_portachupetes(data: dict) -> dict:
+    requeridos = []
+    if data.get("broche"):
+        requeridos.append((data["broche"], 1))
+    requeridos.extend(Counter(str(data.get("nombre", "")).upper()).items())
+    for grupo in ("dijes_normales", "dijes_especiales"):
+        requeridos.extend((x["codigo"], 1) for x in data.get(grupo, []))
+    for grupo in ("bolitas", "lentejas"):
+        requeridos.extend(
+            (x["codigo"], x["cantidad"]) for x in data.get(grupo, [])
+        )
+    return _validar(requeridos)
 
-        # Dijes normales (pueden ser varios)
-        for dije in data.get("dijes_normales", []):
-            verificar_material(dije["codigo"], 1, f"Dije normal {dije['codigo']}")
 
-        # Dijes especiales (pueden ser varios)
-        for dije in data.get("dijes_especiales", []):
-            verificar_material(dije["codigo"], 1, f"Dije especial {dije['codigo']}")
-
-        # Bolitas (pueden ser varias)
-        for bolita in data.get("bolitas", []):
-            verificar_material(bolita["codigo"], bolita["cantidad"], f"Bolita {bolita['codigo']}")
-
-        # Lentejas (pueden ser varias)
-        for lenteja in data.get("lentejas", []):
-            verificar_material(lenteja["codigo"], lenteja["cantidad"], f"Lenteja {lenteja['codigo']}")
-
-        return {
-            "success": success,
-            "faltantes": faltantes,
-            "detalles": detalles
-        }
-
-    except Exception as e:
-        print(f'Ocurrió un problema al validar la confección del pedido. Archivo logic/verificador.py. Función: verificar_confeccion_portachupetes. ERROR: {e}')
-
-def verificar_confeccion_pedido_mayorista(data: dict) -> dict:  # type: ignore
-    """
-    Valida si hay suficiente stock para confeccionar un pedido mayorista según los materiales solicitados.
-    Recibe un diccionario con los siguientes posibles campos:
-        - broches: list[{'codigo': str, 'cantidad': int}]
-        - letras: list[{'codigo': str, 'cantidad': int}]
-        - dijes_normales: list[{'codigo': str, 'cantidad': int}]
-        - dijes_especiales: list[{'codigo': str, 'cantidad': int}]
-        - bolitas: list[{'codigo': str, 'cantidad': int}]
-        - lentejas: list[{'codigo': str, 'cantidad': int}]
-    Devuelve un diccionario con:
-        - 'success': bool
-        - 'faltantes': list[str]
-        - 'detalles': list[str]
-    """
-    try:
-        session = Session(bind=engine)
-
-        faltantes = []
-        detalles = []
-        success = True
-
-        def verificar_material(codigo: str, cantidad_requerida: int, etiqueta: str):
-            nonlocal success
-            material = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
-
-            if material:
-                if material.cantidad >= cantidad_requerida:
-                    detalles.append(f"{etiqueta.upper()}: OK ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
-                else:
-                    faltantes.append(f"{etiqueta.upper()}: Stock insuficiente ({material.cantidad} disponibles, se requieren {cantidad_requerida})")
-                    success = False
-            else:
-                faltantes.append(f"{etiqueta.upper()}: No encontrado en la base de datos")
-                success = False
-
-        # Broche
-        for broche in data.get("broches", []):
-            verificar_material(broche["codigo"], broche["cantidad"], f"Broche {broche['codigo']}")
-
-        # Letras
-        for letra in data.get("letras", []):
-            verificar_material(letra["codigo"], letra["cantidad"], f"Letra {letra['codigo']}")
-
-        # Dijes normales (pueden ser varios)
-        for dije in data.get("dijes_normales", []):
-            verificar_material(dije["codigo"], dije["cantidad"], f"Dije Normal {dije['codigo']}")
-
-        # Dijes especiales (pueden ser varios)
-        for dije in data.get("dijes_especiales", []):
-            verificar_material(dije["codigo"], dije['cantidad'], f"Dije especial {dije['codigo']}")
-
-        # Bolitas (pueden ser varias)
-        for bolita in data.get("bolitas", []):
-            verificar_material(bolita["codigo"], bolita["cantidad"], f"Bolita {bolita['codigo']}")
-
-        # Lentejas (pueden ser varias)
-        for lenteja in data.get("lentejas", []):
-            verificar_material(lenteja["codigo"], lenteja["cantidad"], f"Lenteja {lenteja['codigo']}")
-
-        return {
-            "success": success,
-            "faltantes": faltantes,
-            "detalles": detalles
-        }
-
-    except Exception as e:
-        print(f'Ocurrió un problema al validar la confección del pedido. Archivo logic/verificador.py. Función: verificar_confeccion_portachupetes. ERROR: {e}')
+def verificar_confeccion_pedido_mayorista(data: dict) -> dict:
+    requeridos = []
+    for grupo in (
+        "broches", "letras", "dijes_normales", "dijes_especiales",
+        "bolitas", "lentejas",
+    ):
+        requeridos.extend(
+            (x["codigo"], x["cantidad"]) for x in data.get(grupo, [])
+        )
+    return _validar(requeridos)

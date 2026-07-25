@@ -1,613 +1,363 @@
-from logic.verificador import verificar_confeccion_portachupetes, verificar_confeccion_pedido_mayorista
-from sqlalchemy.orm import Session
-from sqlalchemy import func, select
-from database.models import Stock, Material, Pedido, MaterialPedido
-from datetime import datetime
-from database.engine import engine
-from crud.stock import _incrementar_stock
+"""Pedidos minoristas y mayoristas respaldados por BigQuery."""
+
+from __future__ import annotations
+
+from collections import Counter
+from datetime import date, datetime
+from decimal import Decimal
+import unicodedata
+import uuid
+
 import pandas as pd
-import time
+from google.cloud import bigquery
 
-def obtener_materiales_utilizados(data: dict) -> list[tuple]:  # type: ignore
-    """
-    Función auxiliar que devuelve una lista de tuplas con los materiales usados y sus cantidades.
-    """
+from database.client import query, query_dataframe, table
+from logic.verificador import (
+    verificar_confeccion_pedido_mayorista,
+    verificar_confeccion_portachupetes,
+)
+
+PEDIDOS = table("pedidos")
+DETALLES = table("materiales_pedidos")
+MATERIALES = table("materiales")
+STOCK = table("stock")
+MOVIMIENTOS = table("movimientos_stock")
+
+
+def obtener_materiales_utilizados(data: dict) -> list[tuple]:
+    materiales = []
+    if data.get("broche"):
+        materiales.append((data["broche"], 1))
+    nombre_normalizado = unicodedata.normalize(
+        "NFD", str(data.get("nombre", "")).upper()
+    )
+    nombre = "".join(
+        caracter for caracter in nombre_normalizado
+        if caracter.isalpha() and not unicodedata.combining(caracter)
+    )
+    materiales.extend(Counter(nombre).items())
+    for grupo in ("dijes_normales", "dijes_especiales"):
+        materiales.extend((x["codigo"], 1) for x in data.get(grupo, []))
+    for grupo in ("bolitas", "lentejas"):
+        materiales.extend((x["codigo"], x["cantidad"]) for x in data.get(grupo, []))
+    acumulado = Counter()
+    for codigo, cantidad in materiales:
+        acumulado[str(codigo).strip().upper()] += int(cantidad)
+    return [(codigo, cantidad) for codigo, cantidad in acumulado.items() if cantidad > 0]
+
+
+def obtener_materiales_mayorista(data: dict) -> list[tuple]:
+    acumulado = Counter()
+    for grupo in (
+        "broches", "letras", "dijes_normales", "dijes_especiales",
+        "bolitas", "lentejas",
+    ):
+        for item in data.get(grupo, []):
+            acumulado[str(item["codigo"]).strip().upper()] += int(item["cantidad"])
+    return [(c, q) for c, q in acumulado.items() if q > 0]
+
+
+def _costo_material(codigo):
+    rows = list(query(
+        f"SELECT COALESCE(costo_unitario,0) costo FROM {MATERIALES} "
+        "WHERE codigo_material=@codigo AND activo=TRUE LIMIT 1",
+        [bigquery.ScalarQueryParameter("codigo", "STRING", codigo)],
+    ))
+    return float(rows[0].costo) if rows else 0.0
+
+
+def _crear_pedido(
+    cliente, telefono, fecha_pedido, estado, tipo, materiales, precio_venta=None
+):
+    if not materiales:
+        return "❌ El pedido no contiene materiales."
+    fecha = fecha_pedido or date.today()
+    if isinstance(fecha, datetime):
+        fecha = fecha.date()
+
+    lineas = []
+    costo_total = 0.0
+    letras_procesadas = 0
+    for codigo, cantidad in materiales:
+        costo = _costo_material(codigo)
+        costo_linea = costo * cantidad
+        if tipo == "minorista" and len(codigo) == 1 and codigo.isalpha():
+            costo_linea = 0
+            for _ in range(cantidad):
+                letras_procesadas += 1
+                costo_linea += costo if letras_procesadas <= 5 else 500
+        costo_total += costo_linea
+        lineas.append((codigo, cantidad, costo, costo_linea))
+
+    params = [
+        bigquery.ScalarQueryParameter("cliente", "STRING", str(cliente).strip()),
+        bigquery.ScalarQueryParameter("telefono", "STRING", str(telefono or "").strip()),
+        bigquery.ScalarQueryParameter("fecha", "DATE", fecha),
+        bigquery.ScalarQueryParameter("estado", "STRING", estado),
+        bigquery.ScalarQueryParameter("tipo", "STRING", tipo),
+        bigquery.ScalarQueryParameter(
+            "costo_total", "NUMERIC", Decimal(str(costo_total))
+        ),
+        bigquery.ScalarQueryParameter(
+            "precio_venta",
+            "NUMERIC",
+            Decimal(str(precio_venta or 0)),
+        ),
+    ]
+    bloques = []
+    for i, (codigo, cantidad, costo, costo_linea) in enumerate(lineas):
+        params.extend([
+            bigquery.ScalarQueryParameter(f"c{i}", "STRING", codigo),
+            bigquery.ScalarQueryParameter(f"q{i}", "INT64", cantidad),
+            bigquery.ScalarQueryParameter(
+                f"cu{i}", "NUMERIC", Decimal(str(costo))
+            ),
+            bigquery.ScalarQueryParameter(
+                f"ct{i}", "NUMERIC", Decimal(str(costo_linea))
+            ),
+            bigquery.ScalarQueryParameter(f"d{i}", "STRING", str(uuid.uuid4())),
+            bigquery.ScalarQueryParameter(f"m{i}", "STRING", str(uuid.uuid4())),
+        ])
+        bloques.append(f"""
+        ASSERT (
+          SELECT COALESCE(MAX(cantidad),0) FROM {STOCK}
+          WHERE codigo_material=@c{i}
+        ) >= @q{i} AS 'Stock insuficiente';
+        INSERT INTO {DETALLES}
+        VALUES(@d{i},nuevo_id,@c{i},@q{i},@cu{i},@ct{i},CURRENT_TIMESTAMP());
+        INSERT INTO {MOVIMIENTOS}
+        SELECT @m{i},@c{i},CURRENT_TIMESTAMP(),'CONSUMO_PEDIDO',-@q{i},
+               cantidad,cantidad-@q{i},nuevo_id,'Pedido generado',SESSION_USER()
+        FROM {STOCK} WHERE codigo_material=@c{i};
+        UPDATE {STOCK}
+        SET cantidad=cantidad-@q{i}, fecha_modificacion=CURRENT_TIMESTAMP()
+        WHERE codigo_material=@c{i};
+        """)
+    resultados = list(query(
+        f"""
+        DECLARE nuevo_id INT64 DEFAULT (
+          SELECT COALESCE(MAX(id), 0) + 1 FROM {PEDIDOS}
+        );
+        BEGIN TRANSACTION;
+        INSERT INTO {PEDIDOS} (
+          id, cliente, telefono, fecha_pedido, estado, costo_total,
+          precio_venta, tipo, comentarios, fecha_creacion, fecha_actualizacion
+        )
+        VALUES(
+          nuevo_id,@cliente,@telefono,@fecha,@estado,@costo_total,
+          @precio_venta,@tipo,NULL,CURRENT_TIMESTAMP(),CURRENT_TIMESTAMP()
+        );
+        {''.join(bloques)}
+        COMMIT TRANSACTION;
+        SELECT nuevo_id AS pedido_id;
+        """,
+        params,
+    ))
+    pedido_id = int(resultados[0].pedido_id)
+    return (
+        f"✅ Pedido generado con éxito para {str(cliente).capitalize()} "
+        f"(ID: {pedido_id}) - Costo Total: ${int(costo_total):,}"
+    ).replace(",", ".")
+
+
+def crear_pedido(
+    cliente: str, materiales_portachupete: dict, estado="En proceso",
+    fecha_pedido=None, telefono="", tipo="minorista", precio_venta=None,
+):
     try:
-        result = verificar_confeccion_portachupetes(data)
+        validacion = verificar_confeccion_portachupetes(materiales_portachupete)
+        if not validacion["success"]:
+            return f"❌ Stock insuficiente: {validacion['faltantes']}"
+        return _crear_pedido(
+            cliente, telefono, fecha_pedido, estado, tipo,
+            obtener_materiales_utilizados(materiales_portachupete), precio_venta,
+        )
+    except Exception as exc:
+        return f"❌ Error al generar pedido: {exc}"
 
-        if result["success"]:
-            materiales = []
 
-            # Broche
-            if "broche" in data:
-                materiales.append((data["broche"], 1))
-            else:
-                return "No se encontró ningún broche en el portachupetes. FATAL ERROR" # type: ignore
-
-            # Letras del nombre
-            if "nombre" in data:
-                nombre = data["nombre"].upper()
-                letras_recuento = {}
-                for letra in nombre:
-                    letras_recuento[letra] = letras_recuento.get(letra, 0) + 1
-
-                for letra, cantidad in letras_recuento.items():
-                    materiales.append((letra, cantidad))
-
-            # Dijes normales (puede haber varios)
-            for dije in data.get("dijes_normales", []):
-                materiales.append((dije["codigo"], 1))
-
-            # Dijes especiales (puede haber varios)
-            for dije in data.get("dijes_especiales", []):
-                materiales.append((dije["codigo"], 1))
-
-            # Bolitas
-            for bolita in data.get("bolitas", []):
-                materiales.append((bolita["codigo"], bolita["cantidad"]))
-
-            # Lentejas
-            for lenteja in data.get("lentejas", []):
-                materiales.append((lenteja["codigo"], lenteja["cantidad"]))
-
-            return materiales
-
-        else:
-            return []  # No hay stock suficiente, no devolvemos nada
-
-    except Exception as e:
-        print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
-        return []
-    
-def crear_pedido(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono="", tipo='minorista'):
+def crear_pedido_mayorista(
+    cliente: str, materiales: dict, estado="En proceso",
+    fecha_pedido=None, tipo="mayorista", telefono="", precio_venta=None,
+):
     try:
-        session = Session(bind=engine)
+        validacion = verificar_confeccion_pedido_mayorista(materiales)
+        if not validacion["success"]:
+            return f"❌ Stock insuficiente: {validacion['faltantes']}"
+        return _crear_pedido(
+            cliente, telefono, fecha_pedido, estado, tipo,
+            obtener_materiales_mayorista(materiales), precio_venta,
+        )
+    except Exception as exc:
+        return f"❌ Error al generar pedido: {exc}"
 
-        # Verificar stock
-        result = verificar_confeccion_portachupetes(materiales_portachupete)
-        if not result["success"]:
-            return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
-
-        # Crear pedido
-        nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo)
-        session.add(nuevo_pedido)
-        session.flush()
-        session.refresh(nuevo_pedido)
-
-        # Obtener materiales usados
-        materiales_usados = obtener_materiales_utilizados(materiales_portachupete)
-
-        costo_total = 0.0
-        letras_procesadas = 0
-        cargo_extra_letra = 500
-
-        for codigo, cantidad in materiales_usados:
-            session.add(MaterialPedido(
-                pedido_id=nuevo_pedido.id,
-                codigo_material=codigo.upper(),
-                cantidad_usada=cantidad
-            ))
-
-            # Descontar stock
-            stock = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
-            if stock:
-                stock.cantidad -= cantidad
-
-            # Buscar costo unitario
-            mat = session.query(Material).filter(Material.codigo_material == codigo.upper()).first()
-
-            if len(codigo) == 1 and codigo.isalpha():  # 🔠 Es una letra
-                for _ in range(cantidad):  # por si vienen varias del mismo código
-                    letras_procesadas += 1
-                    if letras_procesadas <= 5:
-                        if mat and mat.costo_unitario is not None:
-                            costo_total += mat.costo_unitario
-                    else:
-                        costo_total += cargo_extra_letra
-            else:
-                # Material normal (no letra)
-                if mat and mat.costo_unitario is not None:
-                    costo_total += mat.costo_unitario * cantidad
-
-        # Guardar costo total
-        nuevo_pedido.costo_total = float(costo_total)
-        session.add(nuevo_pedido)
-        session.commit()
-
-        return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
-
-    except Exception as e:
-        session.rollback()
-        return f"❌ Error al generar pedido: {e}"
-    
-def cancelar_pedido(id:int):
-    '''
-    Funcion para cancelar un pedido por su ID y devolver los materiales al Stock
-    '''
-
-    try:
-        session = Session(bind=engine)
-
-        pedido = session.query(Pedido).filter(Pedido.id == id).first()
-
-        mensajes = []
-
-        if pedido:
-
-            if pedido.estado == 'Cancelado' or pedido.estado == 'Terminado':
-                return f'No se puede cancelar un pedido ya Cancelado o Terminado. ID del Pedido {id}, Estado: {pedido.estado}'
-            
-            pedido.estado = 'Cancelado'
-            materiales_consumidos = session.query(MaterialPedido).filter(MaterialPedido.pedido_id == pedido.id).all()
-
-            for material in materiales_consumidos:
-                _incrementar_stock(session, material.codigo_material.upper(), material.cantidad_usada)
-                mensajes.append(f'El material {material.codigo_material.upper()} se incremento {material.cantidad_usada} unidades nuvamente al Stock')
-                session.delete(material)
-            
-            session.commit()
-
-            return f'Pedido con ID {id} Cancelado con Exito. Detalle de Materiales Devueltos al Stock:\n{mensajes}'
-        
-        else:
-            return f'No se encontro Ningun Pedido con el ID {id}. Porfavor volver a intentarlo'
-
-    except Exception as e:
-        return f'Ocurrio un problema a la hora de Cancelar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
-
-def terminar_pedido(id:int):
-    '''
-    Funcion para terminar un pedido por su ID
-    '''
-    try:
-        session = Session(bind=engine)
-
-        pedido = session.query(Pedido).filter(Pedido.id == id).first()
-
-        if pedido:
-
-            if pedido.estado == 'Cancelado':
-                return f'No se puede terminado un pedido cancelado. ID del Pedido {id}, Estado: {pedido.estado}'
-            
-            pedido.estado = 'Terminado'
-            session.commit()
-            return f'ID pedido: {id} Terminado con Exito'
-        
-        else:
-            return f'No se encontro Ningun Pedido con el ID {id}. Porfavor volver a intentarlo'
-
-    except Exception as e:
-        return f'Ocurrio un problema a la hora de Cancelar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
-
-def modificar_pedido(id: int, columna: str, valor):
-    '''
-    Función para modificar detalles menores del pedido
-    '''
-    try:
-        session = Session(bind=engine)
-
-        pedido = session.query(Pedido).filter(Pedido.id == id).first()
-        estados_prohibidos = ['Cancelado', 'Terminado']
-
-        if pedido is None:
-            return f'No se encontró ningún Pedido con el ID {id}'
-
-        if columna == 'estado':
-            return 'No se puede cambiar el Estado de un Pedido mediante esta función'
-
-        if pedido.estado in estados_prohibidos:
-            return f'No se pueden modificar pedidos en estado {pedido.estado}'
-
-        if not hasattr(Pedido, columna):
-            return f'La columna \"{columna}\" no existe en el modelo Pedido'
-
-        columna_attr = getattr(Pedido, columna)
-
-        # 🧠 Cast específico para costo_total
-        if columna == "costo_total":
-            try:
-                valor = float(valor)
-            except:
-                return "⚠️ El valor ingresado para el costo no es válido (debe ser numérico)"
-            
-        pedido.columna_attr = valor #type:ignore
-        session.commit()
-        return f'Pedido con ID {id} modificado correctamente. El nuevo valor para el campo \"{columna}\" es \"{valor}\"'
-
-    except Exception as e:
-        return f'Ocurrió un problema al modificar un Pedido. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
 
 def listar_todos_pedidos():
-    '''
-    Función para listar todos los pedidos en un DataFrame (ideal para Streamlit)
-    '''
     try:
-        session = Session(bind=engine)
-        pedidos = session.query(Pedido).all()
+        return query_dataframe(
+            f"""
+            SELECT id AS ID, cliente AS Cliente, telefono AS Telefono,
+                   fecha_pedido AS `Fecha Creación`, estado AS Estado,
+                   costo_total AS `Costo Total`, precio_venta AS `Precio Venta`
+            FROM {PEDIDOS} ORDER BY fecha_pedido DESC, fecha_creacion DESC
+            """
+        )
+    except Exception as exc:
+        raise RuntimeError(f"No se pudieron consultar los pedidos: {exc}") from exc
 
-        # Convertir a lista de diccionarios
-        data = [
-            {
-                "ID": pedido.id,
-                "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
-                "Telefono": getattr(pedido, "telefono", None),
-                "Fecha Creación": datetime.date(pedido.fecha_pedido).strftime('%d/%m/%Y'), # type: ignore
-                "Estado": pedido.estado,
-                "Costo Total": pedido.costo_total
-            }
-            
-            for pedido in pedidos
-        ]
 
-        # Pasar a DataFrame
-        return pd.DataFrame(data)
-    
-    except Exception as e:
-        return f'Ocurrió un problema a la hora de Listar todos los Pedidos. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
-    
 def obtener_pedido(id: int):
-    try:
-        session = Session(bind=engine)
-        pedido = session.query(Pedido).filter(Pedido.id == id).first()
-        if pedido:
-            return {
-                "ID": pedido.id,
-                "Cliente": pedido.cliente,
-                "Estado": pedido.estado,
-                "Fecha Pedido": pedido.fecha_pedido,
-                "Teléfono": pedido.telefono,
-                "Costo Total": pedido.costo_total,
-            }
-        return f"No se encontró ningún pedido con ID {id}"
-    except Exception as e:
-        return f"Error al obtener pedido {id}. Detalle: {e}"
+    df = query_dataframe(
+        f"""
+        SELECT id AS ID, cliente AS Cliente, estado AS Estado,
+               fecha_pedido AS `Fecha Pedido`, telefono AS `Teléfono`,
+               costo_total AS `Costo Total`, precio_venta AS `Precio Venta`
+        FROM {PEDIDOS} WHERE id=@id LIMIT 1
+        """,
+        [bigquery.ScalarQueryParameter("id", "INT64", int(id))],
+    )
+    return df.iloc[0].to_dict() if not df.empty else f"No se encontró pedido {id}"
+
 
 def listar_materiales_pedido(id: int):
+    return query_dataframe(
+        f"""
+        SELECT codigo_material AS `Código`, cantidad_usada AS `Cantidad`,
+               costo_unitario AS `Costo Unitario`
+        FROM {DETALLES} WHERE pedido_id=@id ORDER BY codigo_material
+        """,
+        [bigquery.ScalarQueryParameter("id", "INT64", int(id))],
+    )
+
+
+def terminar_pedido(id: int):
+    pedido = obtener_pedido(id)
+    if not isinstance(pedido, dict):
+        return f"⚠️ No se encontró el pedido {id}."
+    if pedido["Estado"] == "Cancelado":
+        return "⚠️ No se puede terminar un pedido cancelado."
+    query(
+        f"UPDATE {PEDIDOS} SET estado='Terminado', "
+        "fecha_actualizacion=CURRENT_TIMESTAMP() WHERE id=@id",
+        [bigquery.ScalarQueryParameter("id", "INT64", int(id))],
+    )
+    return f"✅ Pedido {id} terminado con éxito."
+
+
+def cancelar_pedido(id: int):
     try:
-        session = Session(bind=engine)
-
-        #Genero un Join pata traerme el detalle del material utilizado con su costo unitario
-        stm = select(MaterialPedido.codigo_material, MaterialPedido.cantidad_usada, Material.costo_unitario).join(Material, MaterialPedido.codigo_material == Material.codigo_material).filter(MaterialPedido.pedido_id == id)
-        materiales = session.execute(stm).all()
-
-        # Siempre devolver un DataFrame, incluso vacío
-        if not materiales:
-            return pd.DataFrame(columns=["Código", "Cantidad"])
-
-        data = [
-            {"Código": m.codigo_material, "Cantidad": m.cantidad_usada, "Costo Unitario": m.costo_unitario}
-            for m in materiales
-        ]
-        return pd.DataFrame(data)
-    except Exception as e:
-        # En caso de error, también devolver un DataFrame vacío (y loguear si querés)
-        return pd.DataFrame(columns=["Código", "Cantidad"])
-
-def listar_pedidos_por_estado(estado: str):
-    try:
-        session = Session(bind=engine)
-        pedidos = session.query(Pedido).filter(Pedido.estado == estado).all()
-        data = [
-            {
-                "ID": pedido.id,
-                "Cliente": getattr(pedido, "cliente", None),  # si existe el campo
-                "Telefono": getattr(pedido, "telefono", None),
-                "Fecha Creación": datetime.date(pedido.fecha_pedido), # type: ignore
-                "Estado": pedido.estado,
-            }
-            for pedido in pedidos
-        ]
-        # Pasar a DataFrame
-        return pd.DataFrame(data)
-    
-    except Exception as e:
-        return f'Ocurrió un problema a la hora de Listar todos los Pedidos. Carpeta CRUD - Archivo Pedidos.py. Detalle: {e}'
-
-#NO SE DEBE UTILIZAR ESTA FUNCION
-def eliminar_pedido(id: int):
-    try:
-        session = Session(bind=engine)
-        pedido = session.query(Pedido).filter(Pedido.id == id).first()
-        if not pedido:
-            return f"No se encontró el pedido con ID {id}"
-        session.delete(pedido)
-        session.commit()
-        return f"Pedido con ID {id} eliminado correctamente"
-    except Exception as e:
-        return f"Error al eliminar pedido {id}. Detalle: {e}"
-    
-def listar_materiales_pedido_completo():
-    """
-    Devuelve un DataFrame con la cantidad total de veces que cada material fue utilizado en pedidos.
-    Útil para métricas como los materiales más usados.
-    """
-    try:
-        session = Session(bind=engine)
-        
-        # Unir materiales y su uso en pedidos
-        query = (
-            session.query(
-                Material.codigo_material,
-                Material.descripcion,
-                Material.categoria,
-                Material.subcategoria,
-                Material.color,
-                MaterialPedido.cantidad_usada
-            )
-            .join(MaterialPedido, Material.codigo_material == MaterialPedido.codigo_material)
+        pedido = obtener_pedido(id)
+        if not isinstance(pedido, dict):
+            return f"⚠️ No se encontró el pedido {id}."
+        if pedido["Estado"] in ("Cancelado", "Terminado"):
+            return f"⚠️ No se puede cancelar un pedido {pedido['Estado']}."
+        detalles = listar_materiales_pedido(id)
+        params = [bigquery.ScalarQueryParameter("id", "INT64", int(id))]
+        bloques = []
+        for i, row in detalles.iterrows():
+            params.extend([
+                bigquery.ScalarQueryParameter(f"c{i}", "STRING", row["Código"]),
+                bigquery.ScalarQueryParameter(f"q{i}", "INT64", int(row["Cantidad"])),
+                bigquery.ScalarQueryParameter(f"m{i}", "STRING", str(uuid.uuid4())),
+            ])
+            bloques.append(f"""
+            INSERT INTO {MOVIMIENTOS}
+            SELECT @m{i},@c{i},CURRENT_TIMESTAMP(),'DEVOLUCION_CANCELACION',@q{i},
+                   cantidad,cantidad+@q{i},@id,'Pedido cancelado',SESSION_USER()
+            FROM {STOCK} WHERE codigo_material=@c{i};
+            UPDATE {STOCK} SET cantidad=cantidad+@q{i},
+                   fecha_modificacion=CURRENT_TIMESTAMP()
+            WHERE codigo_material=@c{i};
+            """)
+        query(
+            f"""
+            BEGIN TRANSACTION;
+            UPDATE {PEDIDOS} SET estado='Cancelado',
+              fecha_actualizacion=CURRENT_TIMESTAMP() WHERE id=@id;
+            {''.join(bloques)}
+            COMMIT TRANSACTION;
+            """,
+            params,
         )
+        return f"✅ Pedido {id} cancelado y materiales devueltos al stock."
+    except Exception as exc:
+        return f"❌ Error al cancelar pedido: {exc}"
 
-        data = []
-        for row in query.all():
-            data.append({
-                "Código": row.codigo_material,
-                "Descripción": row.descripcion,
-                "Categoría": row.categoria,
-                "Subcategoría": row.subcategoria,
-                "Color": row.color,
-                "Cantidad Usada": row.cantidad_usada
-            })
-
-        df = pd.DataFrame(data)
-        df_agrupado = df.groupby(["Código", "Descripción", "Categoría", "Subcategoría", "Color", 'Costo Unitario'], as_index=False)["Cantidad Usada"].sum()
-        df_agrupado.sort_values("Cantidad Usada", ascending=False, inplace=True) #type:ignore
-        return df_agrupado
-
-    except Exception as e:
-        return f"❌ Error al listar materiales usados: {e}"
-
-def calcular_costo_total_pedido(pedido_id: int) -> float:
-    """
-    Calcula el costo total de un pedido sumando (costo_unitario * cantidad_usada).
-    Ignora materiales con costo_unitario NULL.
-    """
-    try:
-        session = Session(bind=engine)
-
-        total = session.query(
-            func.sum(
-                func.coalesce(Material.costo_unitario, 0) * MaterialPedido.cantidad_usada
-            )
-        ).select_from(MaterialPedido).join(
-            Material, Material.codigo_material == MaterialPedido.codigo_material
-        ).filter(
-            MaterialPedido.pedido_id == pedido_id
-        ).scalar()
-
-        return float(total) if total else 0.0
-
-    except Exception as e:
-        print(f"❌ Error al calcular el costo del pedido {pedido_id}: {e}")
-        return 0.0
 
 def actualizar_varios_campos_pedido(id: int, cambios: dict) -> str:
-    """
-    Permite modificar múltiples campos de un pedido activo (no cancelado ni terminado).
-    """
-    try:
-        session = Session(bind=engine)
-        pedido = session.query(Pedido).filter(Pedido.id == id).first()
+    permitidos = {
+        "cliente": "cliente", "telefono": "telefono",
+        "fecha_pedido": "fecha_pedido", "costo_total": "costo_total",
+        "precio_venta": "precio_venta", "comentarios": "comentarios",
+    }
+    pedido = obtener_pedido(id)
+    if not isinstance(pedido, dict):
+        return f"❌ No se encontró el pedido {id}."
+    if pedido["Estado"] in ("Cancelado", "Terminado"):
+        return f"⚠️ No se puede modificar un pedido {pedido['Estado']}."
+    partes, params = [], [bigquery.ScalarQueryParameter("id", "INT64", int(id))]
+    tipos = {
+        "fecha_pedido": "DATE",
+        "costo_total": "NUMERIC",
+        "precio_venta": "NUMERIC",
+    }
+    for i, (campo, valor) in enumerate(cambios.items()):
+        if campo not in permitidos:
+            continue
+        partes.append(f"{permitidos[campo]}=@v{i}")
+        if campo in ("costo_total", "precio_venta"):
+            valor = Decimal(str(valor or 0))
+        params.append(bigquery.ScalarQueryParameter(f"v{i}", tipos.get(campo, "STRING"), valor))
+    if not partes:
+        return "⚠️ No hay campos válidos para actualizar."
+    query(
+        f"UPDATE {PEDIDOS} SET {', '.join(partes)}, "
+        "fecha_actualizacion=CURRENT_TIMESTAMP() WHERE id=@id",
+        params,
+    )
+    return f"✅ Pedido {id} actualizado correctamente."
 
-        if not pedido:
-            return f"❌ No se encontró ningún pedido con ID {id}"
 
-        if pedido.estado in ["Cancelado", "Terminado"]:
-            return f"⚠️ No se pueden modificar pedidos en estado {pedido.estado}"
+def modificar_pedido(id: int, columna: str, valor):
+    return actualizar_varios_campos_pedido(id, {columna: valor})
 
-        errores = []
 
-        for campo, valor in cambios.items():
-            if campo == "estado":
-                errores.append("No se puede cambiar el estado del pedido mediante esta función.")
-                continue
+def listar_pedidos_por_estado(estado: str):
+    df = listar_todos_pedidos()
+    return df[df["Estado"] == estado]
 
-            if hasattr(pedido, campo):
-                # Cast para campos específicos
-                if campo == "costo_total":
-                    try:
-                        valor = float(valor)
-                    except:
-                        errores.append(f"⚠️ El valor de '{campo}' debe ser numérico.")
-                        continue
 
-                setattr(pedido, campo, valor)
-            else:
-                errores.append(f"⚠️ La columna '{campo}' no existe en el modelo Pedido.")
+def eliminar_pedido(id: int):
+    return "⚠️ Los pedidos no se eliminan: deben cancelarse para conservar la auditoría."
 
-        if errores:
-            return "\n".join(errores)
 
-        session.commit()
-        return f"✅ Pedido con ID {id} actualizado correctamente."
+def listar_materiales_pedido_completo():
+    return query_dataframe(
+        f"""
+        SELECT d.codigo_material AS `Código`, m.descripcion AS `Descripción`,
+               m.categoria AS `Categoría`, m.subcategoria AS `Subcategoría`,
+               m.color AS `Color`, m.costo_unitario AS `Costo Unitario`,
+               SUM(d.cantidad_usada) AS `Cantidad Usada`
+        FROM {DETALLES} d
+        JOIN {MATERIALES} m USING(codigo_material)
+        JOIN {PEDIDOS} p ON p.id=d.pedido_id
+        WHERE p.estado != 'Cancelado'
+        GROUP BY 1,2,3,4,5,6 ORDER BY 7 DESC
+        """
+    )
 
-    except Exception as e:
-        return f"❌ Ocurrió un problema al actualizar el Pedido con ID {id}. Detalle: {e}"
 
-def crear_pedido_mayorista(cliente:str,  materiales:dict, estado='En proceso', fecha_pedido=datetime.today(), tipo='mayorista', telefono=''):
-    try:
-        session = Session(bind=engine)
+def calcular_costo_total_pedido(pedido_id: int) -> float:
+    pedido = obtener_pedido(pedido_id)
+    return float(pedido["Costo Total"] or 0) if isinstance(pedido, dict) else 0.0
 
-        # Verificar stock
-        result = verificar_confeccion_pedido_mayorista(materiales)
-        if not result["success"]:
-            return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
 
-        # Crear pedido
-        nuevo_pedido_mayorista = Pedido(cliente=cliente, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo, telefono=telefono)
-        session.add(nuevo_pedido_mayorista)
-        session.flush()
-        session.refresh(nuevo_pedido_mayorista)
+def crear_pedido_dummy(
+    cliente: str, materiales_portachupete: dict, estado="En proceso",
+    fecha_pedido=None, telefono="", tipo="minorista",
+):
+    return "⚠️ La creación de pedidos dummy quedó deshabilitada para proteger el stock."
 
-        # Obtener materiales usados
-        materiales_usados = obtener_materiales_mayorista(materiales)
 
-        costo_total = 0.0
-
-        for codigo, cantidad in materiales_usados:
-            session.add(MaterialPedido(
-                pedido_id=nuevo_pedido_mayorista.id,
-                codigo_material=codigo.upper(),
-                cantidad_usada=cantidad
-            ))
-
-            # Descontar stock
-            stock = session.query(Stock).filter(Stock.codigo_material == codigo.upper()).first()
-            if stock:
-                stock.cantidad -= cantidad
-
-            # Buscar costo unitario
-            mat = session.query(Material).filter(Material.codigo_material == codigo.upper()).first() 
-            
-            if mat and mat.costo_unitario is not None:
-                costo_total += mat.costo_unitario * cantidad
-
-        # Guardar costo total
-        nuevo_pedido_mayorista.costo_total = float(costo_total)
-        session.add(nuevo_pedido_mayorista)
-        session.commit()
-
-        return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido_mayorista.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
-
-    except Exception as e:
-        session.rollback()
-        return f"❌ Error al generar pedido: {e}"
-    
-def obtener_materiales_mayorista(data: dict) -> list[tuple]:  # type: ignore
-    """
-    Función auxiliar que devuelve una lista de tuplas con los materiales usados y sus cantidades.
-    """
-    try:
-        result = verificar_confeccion_pedido_mayorista(data)
-
-        if result["success"]:
-            materiales = []
-
-            # Broche
-            for broche in data.get("broches", []):
-                materiales.append((broche["codigo"], broche["cantidad"]))
-
-            # Letras del nombre
-            for letra in data.get("letras", []):
-                materiales.append((letra["codigo"], letra["cantidad"]))
-
-            # Dijes normales (puede haber varios)
-            for dije in data.get("dijes_normales", []):
-                materiales.append((dije["codigo"], dije["cantidad"]))
-
-            # Dijes especiales (puede haber varios)
-            for dije in data.get("dijes_especiales", []):
-                materiales.append((dije["codigo"], dije['cantidad']))
-
-            # Bolitas
-            for bolita in data.get("bolitas", []):
-                materiales.append((bolita["codigo"], bolita["cantidad"]))
-
-            # Lentejas
-            for lenteja in data.get("lentejas", []):
-                materiales.append((lenteja["codigo"], lenteja["cantidad"]))
-
-            return materiales
-
-        else:
-            return []
-
-    except Exception as e:
-        print(f'Ocurrió un error en "obtener_materiales_utilizados": {e}')
-        return []
-    
-def crear_pedido_dummy(cliente: str, materiales_portachupete: dict, estado="En proceso", fecha_pedido=datetime.today(), telefono="", tipo='minorista'):
-
-    '''
-    Funcion para genrar pedido dummy sin descontar material
-    '''
-    try:
-        session = Session(bind=engine)
-
-        # Verificar stock
-        result = verificar_confeccion_portachupetes(materiales_portachupete)
-        if not result["success"]:
-            return f"No se puede confeccionar el portachupetes porque no hay stock suficiente. Detalle:\n{result['faltantes']}"
-
-        # Crear pedido
-        nuevo_pedido = Pedido(cliente=cliente, telefono=telefono, fecha_pedido=fecha_pedido, estado=estado, tipo=tipo)
-        session.add(nuevo_pedido)
-        session.flush()
-        session.refresh(nuevo_pedido)
-
-        # Obtener materiales usados
-        materiales_usados = obtener_materiales_utilizados(materiales_portachupete)
-
-        costo_total = 0.0
-        letras_procesadas = 0
-        cargo_extra_letra = 500
-
-        for codigo, cantidad in materiales_usados:
-            session.add(MaterialPedido(
-                pedido_id=nuevo_pedido.id,
-                codigo_material=codigo.upper(),
-                cantidad_usada=cantidad
-            ))
-            
-            # Buscar costo unitario
-            mat = session.query(Material).filter(Material.codigo_material == codigo.upper()).first()
-
-            if len(codigo) == 1 and codigo.isalpha():  # 🔠 Es una letra
-                for _ in range(cantidad):  # por si vienen varias del mismo código
-                    letras_procesadas += 1
-                    if letras_procesadas <= 5:
-                        if mat and mat.costo_unitario is not None:
-                            costo_total += mat.costo_unitario
-                    else:
-                        costo_total += cargo_extra_letra
-            else:
-                # Material normal (no letra)
-                if mat and mat.costo_unitario is not None:
-                    costo_total += mat.costo_unitario * cantidad
-
-        # Guardar costo total
-        nuevo_pedido.costo_total = float(costo_total)
-        session.add(nuevo_pedido)
-        session.commit()
-
-        return f"✅ Pedido generado con éxito para {cliente.capitalize()} (ID: {nuevo_pedido.id}) - Costo Total: ${int(costo_total):,}".replace(",", ".")
-
-    except Exception as e:
-        session.rollback()
-        return f"❌ Error al generar pedido: {e}"
-    
 def actualizar_varios_campos_pedido_aux(id: int, cambios: dict) -> str:
-    """
-    USO INTERNO
-    """
-    try:
-        session = Session(bind=engine)
-        pedido = session.query(Pedido).filter(Pedido.id == id).first()
-
-        if not pedido:
-            return f"❌ No se encontró ningún pedido con ID {id}"
-
-        errores = []
-
-        for campo, valor in cambios.items():
-
-            if hasattr(pedido, campo):
-                # Cast para campos específicos
-                if campo == "costo_total":
-                    try:
-                        valor = float(valor)
-                    except:
-                        errores.append(f"⚠️ El valor de '{campo}' debe ser numérico.")
-                        continue
-
-                setattr(pedido, campo, valor)
-            else:
-                errores.append(f"⚠️ La columna '{campo}' no existe en el modelo Pedido.")
-
-        if errores:
-            return "\n".join(errores)
-
-        session.commit()
-        return f"✅ Pedido con ID {id} actualizado correctamente."
-
-    except Exception as e:
-        return f"❌ Ocurrió un problema al actualizar el Pedido con ID {id}. Detalle: {e}"
+    return actualizar_varios_campos_pedido(id, cambios)

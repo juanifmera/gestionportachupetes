@@ -2,19 +2,30 @@ import streamlit as st
 import streamlit_authenticator as stauth
 import base64
 import os
-import copy
+from collections.abc import Mapping
 
-st.set_page_config(layout='wide', page_title='Udibaby Gestion', page_icon=':baby_bottle:')
+st.set_page_config(layout='wide', page_title='Hitobaby', page_icon=':baby_bottle:')
 
 def convertir_a_dict(obj):
-    if isinstance(obj, dict):
+    if isinstance(obj, Mapping):
         return {k: convertir_a_dict(v) for k, v in obj.items()}
     elif hasattr(obj, "_asdict"):
         return convertir_a_dict(obj._asdict())
     else:
         return obj
 
-config = convertir_a_dict(copy.deepcopy(st.secrets._secrets))
+try:
+    config = convertir_a_dict(dict(st.secrets))
+except Exception:
+    config = {}
+
+if not config.get("credentials") or not config.get("cookie"):
+    st.error("⚠️ Falta configurar el acceso privado de la aplicación.")
+    st.info(
+        "Creá el archivo `.streamlit/secrets.toml` dentro de "
+        "`sistema_portachupetes` usando `secrets.example.toml` como plantilla."
+    )
+    st.stop()
 
 authenticator = stauth.Authenticate(
     config['credentials'], #type:ignore
@@ -42,12 +53,12 @@ username = st.session_state.get("username")
 # Control de acceso
 if authentication_status:
     
-    st.sidebar.title(f'Udiybaby - {username}')
+    st.sidebar.title(f'HitoBaby - {username}')
     st.sidebar.success(f"Bienvenido, {name} 👋")
     st.sidebar.info("Navegá entre las páginas desde la barra lateral")
     authenticator.logout("Cerrar sesión", "sidebar")
 
-    st.title('Udibaby Sistema de Gestion 👶')
+    st.title(':dog: HitoBaby - Sistema de Control de Gestión 👶')
     st.divider()
     st.subheader('Bienvenido al Sistema de Control de Gestion. En este sistema vas a poder:')
     st.markdown(
@@ -106,7 +117,7 @@ if authentication_status:
             </div>
             """, unsafe_allow_html=True
             )
-        st.markdown(f"<p style='text-align: center;'>Udibaby Logo</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center;'>Hito</p>", unsafe_allow_html=True)
 
     with col3:
             st.markdown(

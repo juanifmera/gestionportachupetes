@@ -1,522 +1,368 @@
-import streamlit as st
-from datetime import datetime, timedelta
-from crud.pedidos import crear_pedido, listar_todos_pedidos, actualizar_varios_campos_pedido, cancelar_pedido, obtener_pedido, terminar_pedido, listar_materiales_pedido, calcular_costo_total_pedido, crear_pedido_mayorista
-from crud.stock import listar_stock
-from crud.materiales import listar_todos_materiales
-import pandas as pd
-from ui.utils.utils import mostrar_exito_y_reiniciar, proteger_pagina
+from datetime import datetime
 
-#Cacheo la lista de Stock
-@st.cache_data
+import pandas as pd
+import streamlit as st
+
+from crud.materiales import listar_todos_materiales
+from crud.pedidos import (
+    actualizar_varios_campos_pedido,
+    cancelar_pedido,
+    crear_pedido,
+    crear_pedido_mayorista,
+    listar_materiales_pedido,
+    listar_todos_pedidos,
+    obtener_pedido,
+    terminar_pedido,
+)
+from crud.stock import listar_stock
+from ui.utils.utils import proteger_pagina
+
+
+@st.cache_data(ttl=30, show_spinner="Consultando stock...")
 def cargar_stock():
     return listar_stock()
 
-#Cacheo la lista de pedidos
-@st.cache_data
+
+@st.cache_data(ttl=30, show_spinner="Consultando pedidos...")
 def cargar_pedidos():
     return listar_todos_pedidos()
 
-@st.cache_data
+
+@st.cache_data(ttl=30, show_spinner="Consultando materiales...")
 def cargar_materiales():
     return listar_todos_materiales()
 
-proteger_pagina()
 
-st.title('Pedidos :money_with_wings:')
+def finalizar(resultado):
+    if resultado.startswith("✅"):
+        st.success(resultado)
+        st.cache_data.clear()
+    elif resultado.startswith("⚠️"):
+        st.warning(resultado)
+    else:
+        st.error(resultado)
+
+
+def codigos(stock, categoria, subcategoria=None):
+    filtro = (stock["Categoría"] == categoria) & (stock["Cantidad"] > 0)
+    if subcategoria:
+        filtro &= stock["Subcategoría"] == subcategoria
+    return sorted(stock.loc[filtro, "Código"].tolist())
+
+
+proteger_pagina()
+st.title("Pedidos 📝")
 st.divider()
 
-tabs_pedido = st.tabs(['Generar Pedido :smile:', 'Cancelar pedido :angry:', 'Terminar pedido ✅', 'Actualizar pedido :zipper_mouth_face:', 'Listar pedidos :alien:', 'Ver Materiales por Pedido :monocle:', 'Pedidos Mayoristas :heavy_dollar_sign:', 'Proximamente ... :dizzy_face:'])
-
-## GENERAR PEDIDO ##
-with tabs_pedido[0]:
-
-    st.subheader("🧾 Generar un Nuevo Pedido", divider="rainbow")
-
-    # ---------- Paso 1: Configuración dinámica ----------
-    st.markdown("### 🔧 Paso 1: Configuración de materiales")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        cantidad_bolitas = st.number_input("🔵 ¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_bolitas_minorista")
-    with col2:
-        cantidad_lentejas = st.number_input("🟤 ¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=10, step=1, key="cantidad_lentejas_minorista")
-    with col3:
-        cantidad_dijes_normales = st.number_input("✨ ¿Cuántos dijes normales vas a usar?", min_value=0, max_value=5, step=1, key="cantidad_dijes_normales_minorista")
-    with col4:
-        cantidad_dijes_especiales = st.number_input("💎 ¿Cuántos dijes especiales vas a usar?", min_value=0, max_value=5, step=1, key="cantidad_dijes_especiales_minorista")
-
-
-    # ---------- Paso 2: Formulario principal ----------
-    with st.form("generar_pedido_form", clear_on_submit=False, border=True):
-
-        st.markdown("### 📋 Paso 2: Detalles del pedido")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            cliente = st.text_input("🧑 Nombre del cliente *", placeholder="Ej: Maria González")
-            telefono = st.text_input("📞 Teléfono", placeholder="Ej: 1122334455")
-
-        with col2:
-            nombre_bebe = st.text_input("👶 Nombre del bebé *", placeholder="Ej: JULIÁN")
-            fecha = st.date_input("📅 Fecha del pedido", value=datetime.today(), format='DD/MM/YYYY')
-
-        st.divider()
-
-        stock_df = cargar_stock()
-
-        # --- Broche (obligatorio) ---
-        broches = stock_df[stock_df["Categoría"].isin(["Broche", "Llavero", "Identificador"])]["Código"].tolist() #type:ignore
-        broche = st.selectbox("📌 Seleccionar Broche *", broches)
-
-        #--- Dijes Normales (dinámico) ---
-        st.markdown("### ✨ Dijes Normales")
-        dijes_normales_seleccionados = []
-        dijes_normales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Normal")]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_dijes_normales):
-            codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}_minorista")
-            dijes_normales_seleccionados.append({"codigo": codigo})
-
-        # --- Dijes Especiales (dinámico) ---
-        st.markdown("### 💎 Dijes Especiales")
-        dijes_especiales_seleccionados = []
-        dijes_especiales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Especial")]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_dijes_especiales):
-            codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}_minorista")
-            dijes_especiales_seleccionados.append({"codigo": codigo})
-
-        # --- Bolitas (dinámico) ---
-        st.markdown("### 🔵 Bolitas")
-        bolitas_seleccionadas = []
-        bolitas_disponibles = stock_df[stock_df["Categoría"] == "Bolita"]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_bolitas):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}_minorista")
-            with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"bolita_cantidad_{i}_minorista")
-            bolitas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
-
-        # --- Lentejas (dinámico) ---
-        st.markdown("### 🟤 Lentejas")
-        lentejas_seleccionadas = []
-        lentejas_disponibles = stock_df[stock_df["Categoría"] == "Lenteja"]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_lentejas):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}_minorista")
-            with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=1, step=1, key=f"lenteja_cantidad_{i}_minorista")
-            lentejas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
-
-        st.divider()
-
-        # ---------- Botón de envío ----------
-        submit = st.form_submit_button("🧾 Generar Pedido", width='stretch', type='primary')
-
-        if submit:
-            if not cliente or not nombre_bebe or not broche:
-                st.error("❌ Debés completar los campos obligatorios: Cliente, Nombre del Bebé y Broche.")
-                st.stop()
-
-            datos_portachupetes = {
-                "broche": broche,
-                "nombre": nombre_bebe.upper(),
-                "dijes_normales": dijes_normales_seleccionados,
-                "dijes_especiales": dijes_especiales_seleccionados,
-                "bolitas": bolitas_seleccionadas,
-                "lentejas": lentejas_seleccionadas,
-            }
-
-            resultado = crear_pedido(cliente, datos_portachupetes, telefono=telefono, fecha_pedido=fecha) #type:ignore
-
-            if "éxito" in resultado.lower():
-                mostrar_exito_y_reiniciar(resultado)
-            else:
-                st.error(resultado)
-
-## CANCELAR PEDIDO ##
-with tabs_pedido[1]:
-    st.subheader('🗑️ Cancelar Pedido', divider='rainbow')
-    st.write('Revisá los pedidos en proceso y seleccioná uno para cancelarlo.')
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    df_pedidos = cargar_pedidos()
-
-    if df_pedidos.empty: #type:ignore
-        st.warning('No hay pedidos generados aun ...')
-        st.stop()
-
-    df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso'] #type:ignore
-
-    st.dataframe(df_pedidos_filtrado, width='stretch')
-
-    with st.form('form_cancelar_pedido', border=False):
-
-        pedido_a_cancelar = st.selectbox('Seleccionar el pedido a cancelar', sorted(df_pedidos_filtrado['ID'].unique(), reverse=True)) #type:ignore
-
-        confirmar = st.checkbox('⚠️ Confirmo que deseo cancelar este pedido. Cancelar el pedido hara que los materiales sean reingresados al Stock', value=False)
-        submit = st.form_submit_button("Cancelar Pedido", type="primary", width='stretch', icon="💣")
-
-        if submit:
-            if not confirmar:
-                st.warning("⚠️ Debes confirmar la eliminación marcando la casilla.")
-                st.stop()
-
-            resultado = cancelar_pedido(int(pedido_a_cancelar)) #type:ignore
-            mostrar_exito_y_reiniciar(resultado)
-
-## TERMINAR PEDIDO ##
-with tabs_pedido[2]:
-    st.subheader('📦 Terminar Pedido', divider='rainbow')
-    st.write('Seleccioná un pedido en proceso para marcarlo como terminado.')
-
-    df_pedidos = cargar_pedidos()
-    
-    if df_pedidos.empty: #type:ignore
-        st.warning('No hay pedidos generados aun ...')
-        st.stop()
-
-    df_pedidos_filtrado = df_pedidos[df_pedidos['Estado'] == 'En proceso']  #type:ignore
-
-    st.dataframe(df_pedidos_filtrado, width='stretch')
-
-    with st.form('form_terminar_pedido', border=False):
-        if not df_pedidos_filtrado.empty:  # type: ignore
-            pedido_a_terminar = st.selectbox(
-                'Seleccionar el pedido a terminar',
-                sorted(df_pedidos_filtrado['ID'].unique(), reverse=True) #type:ignore
-            )
-
-            confirmar = st.checkbox(
-                '✅ Confirmo que deseo terminar este pedido. Esto marcará el pedido como "Terminado".',
-                value=False
-            )
-            submit = st.form_submit_button("Terminar Pedido", type="primary", width='stretch', icon="📦")
-
-            if submit:
-                if not confirmar:
-                    st.warning("⚠️ Debes confirmar marcando la casilla.")
-                    st.stop()
-
-                resultado = terminar_pedido(int(pedido_a_terminar))  # type: ignore
-                mostrar_exito_y_reiniciar(resultado)
-            
-## ACTUALIZAR PEDIDO ##
-with tabs_pedido[3]:
-    st.subheader('✏️ Actualizar Pedido', divider='rainbow')
-    st.write('Seleccioná un pedido activo y modificá los campos que desees.')
-
-    df_pedidos = cargar_pedidos()
-    if df_pedidos.empty: #type:ignore
-        st.warning('No hay pedidos generados aun ...')
-        st.stop()
-
-    df_pedidos_activos = df_pedidos[~df_pedidos['Estado'].isin(['Cancelado', 'Terminado'])]  # type: ignore
-
-    id_pedido = st.selectbox("Seleccionar Pedido a Actualizar (ID)", sorted(df_pedidos_activos['ID'].unique(), reverse=True))# type: ignore
-    datos_pedido = obtener_pedido(int(id_pedido))  # type: ignore
-
-    with st.form("form_actualizar_pedido", border=True):
-
-        nuevo_cliente = st.text_input("Nombre del Cliente", value=datos_pedido['Cliente'])  # type: ignore
-        nuevo_telefono = st.text_input("Teléfono", value=datos_pedido['Teléfono'])  # type: ignore
-        nueva_fecha = st.date_input("Fecha del Pedido", value=datos_pedido['Fecha Pedido'], format='DD/MM/YYYY')  # type: ignore
-        nuevo_costo = st.number_input('Costo Total', value=datos_pedido['Costo Total'])# type: ignore
-
-        st.caption("No se permite modificar el estado del pedido desde este formulario.")
-        submit = st.form_submit_button(":dart: Actualizar Pedido", type="primary", width="stretch")
-
-        if submit:
-            cambios = {}
-
-            if nuevo_cliente != datos_pedido['Cliente']:  # type: ignore
-                cambios['cliente'] = nuevo_cliente
-            if nuevo_telefono != datos_pedido['Teléfono']:  # type: ignore
-                cambios['telefono'] = nuevo_telefono
-            if nueva_fecha != datos_pedido['Fecha Pedido']:  # type: ignore
-                cambios['fecha_pedido'] = nueva_fecha
-            if nuevo_costo != datos_pedido['Costo Total']: # type: ignore
-                cambios['costo_total'] = nuevo_costo
-
-            if not cambios:
-                st.info("No se detectaron cambios para actualizar.")
-                st.stop()
-
-            resultado = actualizar_varios_campos_pedido(int(id_pedido), cambios)  #type:ignore
-
-            if resultado.startswith("✅"):
-                mostrar_exito_y_reiniciar(resultado)
-            else:
-                st.error(resultado)
-
-## LISTAR PEDIDOS ##
-with tabs_pedido[4]:
-    st.subheader('📰 Listar Pedidos', divider='rainbow')
-    st.write('Revisá los Pedidos confeccionados.')
-
-    col1, col2, col3 = st.columns(3)
-
-    df_original = cargar_pedidos()
-
-    if df_original.empty: #type:ignore
-        st.warning('No hay pedidos generados aun ...')
-        st.stop()
-
-    with col1:
-        filtro_estado = st.selectbox('Filtrar por Estado', key='filtro_estado_pedido', options=['Todas'] + sorted(df_original['Estado'].unique()), width='stretch')  # type: ignore
-
-    with col2:
-        buscar_codigo = st.text_input('Buscar por ID', key='filtro_cod_pedido', placeholder='EJ: 1', width='stretch')
-
-    with col3:
-        buscar_cliente = st.text_input('Buscar por Cliente', key='filtro_cliente_pedido', placeholder='EJ: Maria Luz', width='stretch')
-
-    df_filtrado = df_original.copy()  # type: ignore
-
-    # Asegurar que la columna es datetime.date
-    df_filtrado['Fecha Creación'] = pd.to_datetime(df_filtrado['Fecha Creación']).dt.date
-
-    # Aplicar filtros
-    if filtro_estado != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['Estado'] == filtro_estado]
-
-    if buscar_codigo:
-        df_filtrado = df_filtrado[df_filtrado['ID'] == int(buscar_codigo)]
-
-    if buscar_cliente:
-        df_filtrado = df_filtrado[df_filtrado['Cliente'].str.contains(buscar_cliente, case=False)]
-
-    # Mostrar resultados
-    if df_filtrado.empty:
-        st.dataframe(df_filtrado, width='stretch')
-        st.warning("❌ No hay Pedidos disponibles con los filtros seleccionados.")
+accion = st.radio(
+    "Acción",
+    ["Nuevo", "Mayorista", "Gestionar", "Actualizar", "Listar", "Detalle"],
+    horizontal=True,
+    label_visibility="collapsed",
+)
+
+if accion == "Nuevo":
+    st.subheader("🧾 Generar pedido personalizado", divider="rainbow")
+    stock = cargar_stock()
+    if stock.empty:
+        st.info("Primero debés cargar materiales y stock.")
     else:
-        st.dataframe(df_filtrado[["ID", "Cliente", "Telefono", "Fecha Creación", "Estado", "Costo Total"]], width='stretch')
-        st.info(f'Se encontraron {df_filtrado.shape[0]} registros para su búsqueda')
-
-## VISUALIZAR MATERIALES POR PEDIDO ##
-with tabs_pedido[5]:
-    st.subheader("🔍 Detalle de un Pedido", divider="rainbow")
-    st.write("Seleccioná un pedido *Terminado* o *En proceso* para ver los materiales utilizados en su confección.")
-
-    # Obtener todos los pedidos
-    df_pedidos = cargar_pedidos()
-
-    if df_pedidos.empty: #type:ignore
-        st.warning('No hay pedidos generados aun ...')
-        st.stop()
-
-    # Filtrar solo los pedidos válidos
-    if isinstance(df_pedidos, pd.DataFrame) and not df_pedidos.empty:
-        df_filtrado = df_pedidos[df_pedidos["Estado"].isin(["En proceso", "Terminado"])]
-        
-        if not df_filtrado.empty:
-            pedido_ids = sorted(df_filtrado["ID"].unique(), reverse=True)
-            pedido_seleccionado = st.selectbox("Seleccioná el ID del Pedido", pedido_ids)
-
-            # Mostrar información general del pedido
-            datos = obtener_pedido(int(pedido_seleccionado)) #type:ignore
-            if isinstance(datos, dict):
-                st.markdown(f"""
-                **👤 Cliente:** {datos['Cliente'].capitalize()}  
-                **📞 Teléfono:** {datos['Teléfono'] if datos['Teléfono'] else ':red[Falta Dato]'}  
-                **📅 Fecha del Pedido:** {datos['Fecha Pedido'].strftime('%d/%m/%Y')}  
-                **📦 Estado:** {datos['Estado']}  
-                **💵 Costo:** ${int(datos['Costo Total'])}
-                """)
-
-                st.divider()
-                st.markdown("### 🧱 Materiales utilizados")
-
-                # Obtener materiales
-                with st.spinner(f'Cargando Materiales del Pedido {pedido_seleccionado}'):
-                    df_materiales = listar_materiales_pedido(int(pedido_seleccionado)) #type:ignore
-
-                # Enriquecer con categoría (si hay datos)
-                if not df_materiales.empty : #type:ignore
-                    # Traer info de materiales (para obtener categoría)
-                    df_info = cargar_materiales()
-
-                    # Hacemos merge con los materiales usados
-                    df_final = pd.merge(df_materiales, df_info, on="Código", how="left") #type:ignore
-
-                    # Ordenar columnas
-                    df_final.rename(columns={'Costo Unitario_x':'Costo Unitario'}, inplace=True)
-                    df_final['Costo Total'] = df_final['Cantidad'] * df_final['Costo Unitario']
-                    df_final = df_final[["Código", "Categoría", 'Descripción', 'Color', "Cantidad", "Costo Unitario", 'Costo Total']]
-                    st.dataframe(df_final, width='stretch')
-
-                    st.info(f"Se utilizaron {df_final.shape[0]} materiales en este pedido. "
-                            f"Costo total del Portachupetes: **${int(datos['Costo Total'])}**")
-
-                    # 🔑 Validar letras extra
-                    cantidad_letras = len(df_final[df_final['Categoría'] == 'Letra'])
-                    if cantidad_letras > 5:
-                        extras = cantidad_letras - 5
-                        cargo_extra = extras * 500
-                        st.warning(f'Este pedido contiene **{extras}** letra(s) adicionales. '
-                                f'El cargo extra es de **${cargo_extra}**.')
-
-                    st.success(f'Precio Estimado de Venta teniendo en cuenta un margen del 275%: '
-                            f'**${int(datos["Costo Total"] * 2.75)}**')
-
-                else:
-                    st.warning("⚠️ No se encontraron materiales asociados a este pedido.")
-            else:
-                st.error(f"❌ Error al obtener detalles del pedido: {datos}")
+        broches = sorted(stock.loc[
+            stock["Categoría"].isin(["Broche", "Llavero", "Identificador"])
+            & (stock["Cantidad"] > 0),
+            "Código",
+        ].tolist())
+        if not broches:
+            st.warning(
+                "No hay broches, llaveros ni identificadores con stock. "
+                "Cargá al menos uno para generar pedidos."
+            )
         else:
-            st.warning("❌ No hay pedidos en estado 'En proceso' o 'Terminado' para mostrar.")
-    else:
-        st.warning("❌ No hay pedidos registrados en el sistema.")
+            st.markdown("### 1. Configuración")
+            c1, c2, c3, c4 = st.columns(4)
+            n_bolitas = c1.number_input(
+                "Bolitas distintas", 0, 10, 0, key="n_bolitas"
+            )
+            n_lentejas = c2.number_input(
+                "Lentejas distintas", 0, 10, 0, key="n_lentejas"
+            )
+            n_dijes = c3.number_input(
+                "Dijes normales", 0, 5, 0, key="n_dijes"
+            )
+            n_especiales = c4.number_input(
+                "Dijes especiales", 0, 5, 0, key="n_especiales"
+            )
 
-## PEDIDOS MAYORISTAS ##
-with tabs_pedido[6]:
-
-    st.subheader("🧾 Generar un Nuevo Pedido Mayorista", divider="rainbow")
-
-    # ---------- Paso 1: Configuración dinámica ----------
-    st.markdown("### 🔧 Paso 1: Configuración de materiales al por Mayor")
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-    with col1:
-        cantidad_broches = st.number_input('🌅 Cuantos broches distintos vas a usar?', min_value=0, max_value=50, step=1, key='cantidad_broches_mayorista')
-    with col2:
-        cantidad_bolitas = st.number_input("🔵 ¿Cuántas bolitas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_bolitas_mayorista")
-    with col3:
-        cantidad_lentejas = st.number_input("🟤 ¿Cuántas lentejas distintas vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_lentejas_mayorista")
-    with col4:
-        cantidad_dijes_normales = st.number_input("✨ ¿Cuántos dijes normales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_normales_mayorista")
-    with col5:
-        cantidad_dijes_especiales = st.number_input("💎 ¿Cuántos dijes especiales vas a usar?", min_value=0, max_value=50, step=1, key="cantidad_dijes_especiales_mayorista")
-    with col6:
-        cantidad_letras = st.number_input('💌 Cuantas letras distintas vas a usar?', min_value=1, max_value=50, step=1, key='cantidad_letras_mayorista')
-
-
-    # ---------- Paso 2: Formulario principal ----------
-    with st.form("generar_pedido_form_mayorista", clear_on_submit=False, border=True):
-
-        st.markdown("### 📋 Paso 2: Detalles del pedido")
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            cliente = st.text_input("🧑 Nombre del cliente *", placeholder="Ej: Maria González")
-        with col2:
-            telefono = st.text_input("📞 Teléfono", placeholder="Ej: 1122334455")
-        with col3:
-            fecha = st.date_input("📅 Fecha del pedido", value=datetime.today(), format='DD/MM/YYYY')
-
-        st.divider()
-
-        stock_df = cargar_stock()
-
-        # --- Broche (Dinamico) ---
-        st.markdown("### 🌅 Broches")
-        broches = stock_df[stock_df["Categoría"] == "Broche"]["Código"].tolist() #type:ignore
-        broches_seleccionados = []
-
-        for i in range(cantidad_broches):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f"Broche #{i + 1}", broches, key=f"broche_{i}_mayorista")
-            with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"broche_cantidad_{i}_mayorista")
-            broches_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
-        
-        #--- Dijes Normales (dinámico) ---
-        st.markdown("### ✨ Dijes Normales")
-        dijes_normales_seleccionados = []
-        dijes_normales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Normal")]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_dijes_normales):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f"Dije Normal #{i + 1}", dijes_normales, key=f"dije_normal_{i}_mayorista")
-            with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"dije_normal_cantidad_{i}_mayorista")
-            dijes_normales_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
-
-        # --- Dijes Especiales (dinámico) ---
-        st.markdown("### 💎 Dijes Especiales")
-        dijes_especiales_seleccionados = []
-        dijes_especiales = stock_df[(stock_df["Categoría"] == "Dije") & (stock_df["Subcategoría"] == "Especial")]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_dijes_especiales):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f"Dije Especial #{i + 1}", dijes_especiales, key=f"dije_especial_{i}_mayorista")
-            with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"dije_especial_cantidad_{i}_mayorista")
-            dijes_especiales_seleccionados.append({"codigo": codigo, "cantidad": cantidad})
-
-        # --- Bolitas (dinámico) ---
-        st.markdown("### 🔵 Bolitas")
-        bolitas_seleccionadas = []
-        bolitas_disponibles = stock_df[stock_df["Categoría"] == "Bolita"]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_bolitas):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f"Bolita #{i + 1}", bolitas_disponibles, key=f"bolita_codigo_{i}_mayorista")
-            with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"bolita_cantidad_{i}_mayorista")
-            bolitas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
-
-        # --- Lentejas (dinámico) ---
-        st.markdown("### 🟤 Lentejas")
-        lentejas_seleccionadas = []
-        lentejas_disponibles = stock_df[stock_df["Categoría"] == "Lenteja"]["Código"].tolist()#type:ignore
-
-        for i in range(cantidad_lentejas):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f"Lenteja #{i + 1}", lentejas_disponibles, key=f"lenteja_codigo_{i}_mayorista")
-            with col2:
-                cantidad = st.number_input(f"Cantidad", min_value=0, step=1, key=f"lenteja_cantidad_{i}_mayorista")
-            lentejas_seleccionadas.append({"codigo": codigo, "cantidad": cantidad})
-
-        # --- Letras (dinamico) ---
-        st.markdown("### 💌 Letras")
-        letras_seleccionadas = []
-        letras_disponibles = sorted(stock_df[stock_df['Categoría'] == 'Letra']['Código'].tolist()) #type:ignore
-
-        for i in range(cantidad_letras):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                codigo = st.selectbox(f'Letra #{i + 1}', letras_disponibles, key=f'letra_codigo_{i}_mayorista')
-            with col2:
-                cantidad = st.number_input('Cantidad', min_value=0, step=1, value=0, key=f'letra_cantidad_{i}_mayorista')
-            letras_seleccionadas.append({'codigo':codigo, 'cantidad':cantidad})
-
-        st.divider()
-
-        # ---------- Botón de envío ----------
-        submit = st.form_submit_button("🧾 Generar Pedido", width='stretch', type='primary')
-
-        if submit:
-            if not cliente:
-                st.error("❌ Debés completar los campos obligatorios: Cliente.")
-                st.stop()
-
-            datos_portachupetes = {
-                "broches": broches_seleccionados,
-                "letras": letras_seleccionadas,
-                "dijes_normales": dijes_normales_seleccionados,
-                "dijes_especiales": dijes_especiales_seleccionados,
-                "bolitas": bolitas_seleccionadas,
-                "lentejas": lentejas_seleccionadas,
+            opciones = {
+                "dijes": codigos(stock, "Dije", "Normal"),
+                "especiales": codigos(stock, "Dije", "Especial"),
+                "bolitas": codigos(stock, "Bolita"),
+                "lentejas": codigos(stock, "Lenteja"),
             }
-
-            resultado = crear_pedido_mayorista(cliente, datos_portachupetes, telefono=telefono, fecha_pedido=fecha) #type:ignore
-
-            if "éxito" in resultado.lower():
-                mostrar_exito_y_reiniciar(resultado)
+            faltan = []
+            for cantidad, clave, nombre in (
+                (n_dijes, "dijes", "dijes normales"),
+                (n_especiales, "especiales", "dijes especiales"),
+                (n_bolitas, "bolitas", "bolitas"),
+                (n_lentejas, "lentejas", "lentejas"),
+            ):
+                if cantidad and not opciones[clave]:
+                    faltan.append(nombre)
+            if faltan:
+                st.warning(
+                    "No hay stock disponible para: " + ", ".join(faltan) + "."
+                )
             else:
-                st.error(resultado)
+                with st.form("nuevo_pedido"):
+                    st.markdown("### 2. Datos y materiales")
+                    c1, c2 = st.columns(2)
+                    cliente = c1.text_input("Cliente *")
+                    telefono = c1.text_input("Teléfono")
+                    nombre = c2.text_input("Nombre del bebé *")
+                    fecha = c2.date_input(
+                        "Fecha", value=datetime.today(), format="DD/MM/YYYY"
+                    )
+                    precio_venta = c2.number_input(
+                        "Precio final de venta", min_value=0.0, value=0.0, step=100.0
+                    )
+                    broche = c1.selectbox("Broche / base *", broches)
 
-## PROXIMAS FEATURES ##    
-with tabs_pedido[7]:
-    st.info(':warning: Mas Acciones seran Incorporadas en breve!!! (Llevar Ideas a Juan Mera)')
+                    dijes_normales = [
+                        {"codigo": st.selectbox(
+                            f"Dije normal #{i + 1}", opciones["dijes"],
+                            key=f"dn_{i}",
+                        )}
+                        for i in range(int(n_dijes))
+                    ]
+                    dijes_especiales = [
+                        {"codigo": st.selectbox(
+                            f"Dije especial #{i + 1}", opciones["especiales"],
+                            key=f"de_{i}",
+                        )}
+                        for i in range(int(n_especiales))
+                    ]
+                    bolitas = []
+                    for i in range(int(n_bolitas)):
+                        c1, c2 = st.columns([2, 1])
+                        codigo = c1.selectbox(
+                            f"Bolita #{i + 1}", opciones["bolitas"], key=f"b_{i}"
+                        )
+                        cantidad = c2.number_input(
+                            "Cantidad", 1, 100, 1, key=f"bq_{i}"
+                        )
+                        bolitas.append({"codigo": codigo, "cantidad": cantidad})
+                    lentejas = []
+                    for i in range(int(n_lentejas)):
+                        c1, c2 = st.columns([2, 1])
+                        codigo = c1.selectbox(
+                            f"Lenteja #{i + 1}", opciones["lentejas"], key=f"l_{i}"
+                        )
+                        cantidad = c2.number_input(
+                            "Cantidad", 1, 100, 1, key=f"lq_{i}"
+                        )
+                        lentejas.append({"codigo": codigo, "cantidad": cantidad})
+                    enviar = st.form_submit_button(
+                        "Generar pedido", type="primary", use_container_width=True
+                    )
+                if enviar:
+                    if not cliente.strip() or not nombre.strip():
+                        st.error("Completá cliente y nombre del bebé.")
+                    else:
+                        finalizar(crear_pedido(
+                            cliente,
+                            {
+                                "broche": broche,
+                                "nombre": nombre,
+                                "dijes_normales": dijes_normales,
+                                "dijes_especiales": dijes_especiales,
+                                "bolitas": bolitas,
+                                "lentejas": lentejas,
+                            },
+                            telefono=telefono,
+                            fecha_pedido=fecha,
+                            precio_venta=precio_venta,
+                        ))
+
+elif accion == "Mayorista":
+    st.subheader("📦 Generar pedido mayorista", divider="rainbow")
+    stock = cargar_stock()
+    disponibles = stock.loc[stock["Cantidad"] > 0, "Código"].tolist()
+    if not disponibles:
+        st.info("No hay materiales con stock.")
+    else:
+        cantidad_lineas = st.number_input(
+            "Cantidad de materiales distintos", 1, 50, 1
+        )
+        with st.form("pedido_mayorista"):
+            c1, c2 = st.columns(2)
+            cliente = c1.text_input("Cliente *")
+            telefono = c1.text_input("Teléfono")
+            fecha = c2.date_input(
+                "Fecha", value=datetime.today(), format="DD/MM/YYYY"
+            )
+            precio_venta = c2.number_input(
+                "Precio final de venta", min_value=0.0, value=0.0, step=100.0
+            )
+            seleccionados = []
+            for i in range(int(cantidad_lineas)):
+                c1, c2 = st.columns([2, 1])
+                codigo = c1.selectbox(
+                    f"Material #{i + 1}", disponibles, key=f"may_c_{i}"
+                )
+                cantidad = c2.number_input(
+                    "Cantidad", 1, 10000, 1, key=f"may_q_{i}"
+                )
+                seleccionados.append({"codigo": codigo, "cantidad": cantidad})
+            enviar = st.form_submit_button(
+                "Generar pedido mayorista",
+                type="primary",
+                use_container_width=True,
+            )
+        if enviar:
+            if not cliente.strip():
+                st.error("Completá el nombre del cliente.")
+            else:
+                por_categoria = {
+                    "broches": [], "letras": [], "dijes_normales": [],
+                    "dijes_especiales": [], "bolitas": [], "lentejas": [],
+                }
+                mapa = stock.set_index("Código")
+                for item in seleccionados:
+                    fila = mapa.loc[item["codigo"]]
+                    categoria = fila["Categoría"]
+                    if categoria in ("Broche", "Llavero", "Identificador"):
+                        por_categoria["broches"].append(item)
+                    elif categoria == "Letra":
+                        por_categoria["letras"].append(item)
+                    elif categoria == "Dije":
+                        clave = (
+                            "dijes_especiales"
+                            if fila["Subcategoría"] == "Especial"
+                            else "dijes_normales"
+                        )
+                        por_categoria[clave].append(item)
+                    elif categoria == "Bolita":
+                        por_categoria["bolitas"].append(item)
+                    elif categoria == "Lenteja":
+                        por_categoria["lentejas"].append(item)
+                finalizar(crear_pedido_mayorista(
+                    cliente,
+                    por_categoria,
+                    telefono=telefono,
+                    fecha_pedido=fecha,
+                    precio_venta=precio_venta,
+                ))
+
+elif accion == "Gestionar":
+    st.subheader("✅ Gestionar pedidos en proceso", divider="rainbow")
+    pedidos = cargar_pedidos()
+    activos = pedidos[pedidos["Estado"] == "En proceso"]
+    if activos.empty:
+        st.info("No hay pedidos en proceso.")
+    else:
+        st.dataframe(activos, use_container_width=True)
+        pedido_id = int(st.selectbox(
+            "Pedido", sorted(activos["ID"].tolist(), reverse=True)
+        ))
+        if st.button(
+            "Marcar como terminado", type="primary", use_container_width=True
+        ):
+            finalizar(terminar_pedido(pedido_id))
+        c1, c2 = st.columns(2)
+        with c1:
+            confirmar = st.checkbox("Confirmar cancelación")
+        with c2:
+            if st.button("Cancelar y devolver stock", use_container_width=True):
+                if confirmar:
+                    finalizar(cancelar_pedido(pedido_id))
+                else:
+                    st.warning("Confirmá la cancelación.")
+
+elif accion == "Actualizar":
+    st.subheader("✏️ Actualizar pedido", divider="rainbow")
+    pedidos = cargar_pedidos()
+    activos = pedidos[pedidos["Estado"] == "En proceso"]
+    if activos.empty:
+        st.info("No hay pedidos editables.")
+    else:
+        pedido_id = int(st.selectbox(
+            "Pedido", sorted(activos["ID"].tolist(), reverse=True)
+        ))
+        datos = obtener_pedido(pedido_id)
+        with st.form("actualizar_pedido"):
+            cliente = st.text_input("Cliente", datos["Cliente"])
+            telefono = st.text_input("Teléfono", datos["Teléfono"] or "")
+            fecha = st.date_input("Fecha", datos["Fecha Pedido"])
+            costo = st.number_input(
+                "Costo total", min_value=0.0, value=float(datos["Costo Total"] or 0)
+            )
+            precio_venta = st.number_input(
+                "Precio final de venta",
+                min_value=0.0,
+                value=float(datos["Precio Venta"] or 0),
+            )
+            enviar = st.form_submit_button(
+                "Guardar cambios", type="primary", use_container_width=True
+            )
+        if enviar:
+            finalizar(actualizar_varios_campos_pedido(pedido_id, {
+                "cliente": cliente,
+                "telefono": telefono,
+                "fecha_pedido": fecha,
+                "costo_total": costo,
+                "precio_venta": precio_venta,
+            }))
+
+elif accion == "Listar":
+    st.subheader("📰 Pedidos", divider="rainbow")
+    pedidos = cargar_pedidos()
+    if pedidos.empty:
+        st.info("Todavía no hay pedidos.")
+    else:
+        c1, c2 = st.columns(2)
+        estado = c1.selectbox(
+            "Estado", ["Todos"] + sorted(pedidos["Estado"].unique())
+        )
+        cliente = c2.text_input("Buscar cliente")
+        filtrados = pedidos.copy()
+        if estado != "Todos":
+            filtrados = filtrados[filtrados["Estado"] == estado]
+        if cliente:
+            filtrados = filtrados[
+                filtrados["Cliente"].str.contains(cliente, case=False)
+            ]
+        st.dataframe(filtrados, use_container_width=True)
+
+elif accion == "Detalle":
+    st.subheader("🔍 Detalle del pedido", divider="rainbow")
+    pedidos = cargar_pedidos()
+    if pedidos.empty:
+        st.info("Todavía no hay pedidos.")
+    else:
+        pedido_id = int(st.selectbox(
+            "Pedido", sorted(pedidos["ID"].tolist(), reverse=True)
+        ))
+        datos = obtener_pedido(pedido_id)
+        costo_total = float(datos["Costo Total"] or 0)
+        precio_estimado = costo_total * 2.75
+        precio_venta = float(datos["Precio Venta"] or 0)
+        st.json({
+            "ID Pedido": pedido_id,
+            "Cliente": datos["Cliente"],
+            "Teléfono": datos["Teléfono"],
+            "Fecha": str(datos["Fecha Pedido"]),
+            "Estado": datos["Estado"],
+            "Costo Total": costo_total,
+            "Precio Estimado Venta": precio_estimado,
+            "Precio Final de Venta": precio_venta,
+            "Diferencia vs Estimado": precio_venta - precio_estimado,
+        })
+        detalles = listar_materiales_pedido(pedido_id)
+        if detalles.empty:
+            st.info("Este pedido no tiene materiales asociados.")
+        else:
+            materiales = cargar_materiales()[[
+                "Código", "Descripción", "Color", "Categoría", "Subcategoría"
+            ]]
+            detalle = detalles.merge(materiales, on="Código", how="left")
+            st.dataframe(detalle, use_container_width=True)

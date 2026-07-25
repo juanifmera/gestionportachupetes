@@ -1,245 +1,214 @@
-from sqlalchemy.orm import Session
+"""Operaciones de materiales en BigQuery."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from decimal import Decimal
+
 import pandas as pd
-from database.models import Material
-from database.engine import engine
-from datetime import datetime
+from google.cloud import bigquery
 
-#Agrego Material
-def agregar_material(codigo_material:str, descripcion:str, color:str,
-                     categoria:str, subcategoria:str, costo_unitario:int,
-                     comentarios=None, fecha_ingreso=datetime.today()) -> str:
+from database.client import query, query_dataframe, table
+
+T = table("materiales")
+COLUMNAS = {
+    "descripcion": "descripcion",
+    "color": "color",
+    "categoria": "categoria",
+    "subcategoria": "subcategoria",
+    "fecha_ingreso": "fecha_ingreso",
+    "comentarios": "comentarios",
+    "costo_unitario": "costo_unitario",
+    "activo": "activo",
+}
+
+
+def _texto(valor, *, upper=False):
+    if valor is None or pd.isna(valor):
+        return ""
+    texto = str(valor).strip()
+    return texto.upper() if upper else texto
+
+
+def agregar_material(
+    codigo_material: str,
+    descripcion: str,
+    color: str,
+    categoria: str,
+    subcategoria: str,
+    costo_unitario: float = 0,
+    comentarios=None,
+    fecha_ingreso=None,
+) -> str:
     try:
-        session = Session(bind=engine)
-
-        # Normalizo campos para evitar errores con NaN o None
-        desc = '' if descripcion is None or pd.isna(descripcion) else str(descripcion).strip().capitalize()
-        col  = '' if color is None or pd.isna(color) else str(color).strip().capitalize()
-        cat  = '' if categoria is None or pd.isna(categoria) else str(categoria).strip().capitalize()
-        subc = '' if subcategoria is None or pd.isna(subcategoria) else str(subcategoria).strip().capitalize()
-        com  = '' if comentarios is None or pd.isna(comentarios) else str(comentarios).strip().capitalize()
-        cod  = str(codigo_material).strip().upper()
-        cu   = int(costo_unitario) if costo_unitario is not None else 0
-
-        nuevo_material = Material(
-            codigo_material=cod,
-            descripcion=desc,
-            color=col,
-            categoria=cat,
-            subcategoria=subc,
-            fecha_ingreso=fecha_ingreso,
-            comentarios=com,
-            costo_unitario=cu
+        codigo = _texto(codigo_material, upper=True)
+        if not codigo:
+            return "⚠️ El código del material es obligatorio."
+        if validar_material(codigo):
+            return f"⚠️ Ya existe el material {codigo}."
+        fecha = fecha_ingreso or date.today()
+        if isinstance(fecha, datetime):
+            fecha = fecha.date()
+        costo = 0 if costo_unitario is None or pd.isna(costo_unitario) else costo_unitario
+        params = [
+            bigquery.ScalarQueryParameter("codigo", "STRING", codigo),
+            bigquery.ScalarQueryParameter("descripcion", "STRING", _texto(descripcion)),
+            bigquery.ScalarQueryParameter("color", "STRING", _texto(color)),
+            bigquery.ScalarQueryParameter("categoria", "STRING", _texto(categoria)),
+            bigquery.ScalarQueryParameter("subcategoria", "STRING", _texto(subcategoria)),
+            bigquery.ScalarQueryParameter("fecha", "DATE", fecha),
+            bigquery.ScalarQueryParameter("comentarios", "STRING", _texto(comentarios)),
+            bigquery.ScalarQueryParameter(
+                "costo", "NUMERIC", Decimal(str(costo))
+            ),
+        ]
+        query(
+            f"""
+            MERGE {T} AS destino
+            USING (
+              SELECT
+                @codigo AS codigo_material,
+                @descripcion AS descripcion,
+                @color AS color,
+                @categoria AS categoria,
+                @subcategoria AS subcategoria,
+                @fecha AS fecha_ingreso,
+                @comentarios AS comentarios,
+                @costo AS costo_unitario
+            ) AS origen
+            ON destino.codigo_material = origen.codigo_material
+            WHEN NOT MATCHED THEN
+              INSERT (
+                codigo_material, descripcion, color, categoria, subcategoria,
+                fecha_ingreso, comentarios, costo_unitario, activo,
+                fecha_creacion, fecha_actualizacion
+              )
+              VALUES (
+                origen.codigo_material, origen.descripcion, origen.color,
+                origen.categoria, origen.subcategoria, origen.fecha_ingreso,
+                origen.comentarios, origen.costo_unitario, TRUE,
+                CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+              )
+            """,
+            params,
         )
+        if not validar_material(codigo):
+            return f"❌ No se pudo agregar el material {codigo}."
+        return f'✅ Nuevo material "{_texto(descripcion)}" con código {codigo} agregado con éxito.'
+    except Exception as exc:
+        return f"❌ Error al agregar material. Detalle: {exc}"
 
-        # Validar duplicado
-        result = session.query(Material).filter(Material.codigo_material == cod).first()
-        if result:
-            return f'⚠️ Ya existe el material {result.codigo_material} en la lista. Detalle: {result.descripcion}'
 
-        session.add(nuevo_material)
-        session.commit()
-
-        return f'✅ Nuevo material "{desc}" con código {cod} agregado con éxito el {fecha_ingreso.strftime("%d/%m/%Y")}'
-
-    except Exception as e:
-        session.rollback()
-        return f'❌ Error en agregar_material. DETALLE: {e}'
-
-#Actualizar Material
-def actualizar_material(codigo_material: str, columna: str, nuevo_valor):
-    """
-    Función para modificar un Material de la tabla Materiales utilizando su codigo_material
-    """
-    try:
-        session = Session(bind=engine)
-
-        if not hasattr(Material, columna):
-            return f'❌ La columna "{columna}" no existe en la tabla Materiales.'
-
-        columna_attr = getattr(Material, columna)
-        result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).update({columna_attr: nuevo_valor})
-        session.commit()
-
-        if result:
-            return f'✅ Material {codigo_material.upper()} actualizado correctamente. Campo "{columna}" = "{nuevo_valor}"'
-        else:
-            return f'⚠️ No se encontró material con código {codigo_material.upper()}'
-
-    except Exception as e:
-        return(f'❌ Ocurrio un error a la hora de actualizar un Material. Archivo --> CRUD - Material - Funcion "actualizar_material". DETALLE: {e}')
-
-#Elimino Material
-def eliminar_material(codigo_material:str):
-    '''
-    Funcion para eliminar un  Material de la Tabla Materiales utilizando su codigo_material
-    '''
-    
-    try:
-        session = Session(bind=engine)
-        result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).delete()
-
-        if result:
-            session.commit()
-            return f'✅ Material {codigo_material.upper()} eliminado correctamente'
-        else:
-            return f'⚠️ No se encontró material con código {codigo_material.upper()}'
-        
-    except Exception as e:
-        return(f'❌ Ocurrio un error a la hora de eliminar un Material. Archivo --> CRUD - Material - Funcion "eliminar_material". DETALLE: {e}')
-
-#Listo Todos los Materiales
 def listar_todos_materiales():
-    '''
-    Funcion para Listar todos los materiales de la Tabla Materiales
-    '''
-    
     try:
-        session = Session(bind=engine)
-        materiales = session.query(Material).all()
-
-        data = [
-            {
-                "Código": m.codigo_material,
-                "Descripción": m.descripcion,
-                "Color": m.color,
-                "Categoría": m.categoria,
-                "Subcategoría": m.subcategoria,
-                "Fecha Ingreso": datetime.date(m.fecha_ingreso).strftime('%d/%m/%Y'), # type: ignore
-                "Costo Unitario": m.costo_unitario,
-                "Comentarios": m.comentarios
-            }
-            
-            for m in materiales
-        ]
-
-        return pd.DataFrame(data)
-        
-    except Exception as e:
-        return(f'❌ Ocurrio un error a la hora de Listar los Materiales. Archivo --> CRUD - Material - Funcion "listo_todo". DETALLE: {e}')
-
-#Filtro por Condicion
-def listo_con_filtro(columna:str, valor):
-    '''
-    Funcion para Listar todos los materiales de la Tabla Materiales en funcion a una condicion
-    '''
-    
-    try:
-        session = Session(bind=engine)
-
-        if not hasattr(Material, columna):
-            return pd.DataFrame([{"Error": f'❌ La columna "{columna}" no existe en Material'}])
-
-        columna_attr = getattr(Material, columna)
-        result = session.query(Material).filter(columna_attr == valor).all()
-
-        if not result:
-            return pd.DataFrame([{"Mensaje": f'⚠️ No se encontraron materiales con {columna} = {valor}'}])
-
-        data = [
-            {
-                "Código": m.codigo_material,
-                "Descripción": m.descripcion,
-                "Color": m.color,
-                "Categoría": m.categoria,
-                "Subcategoría": m.subcategoria,
-                "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
-                "Costo Unitario": m.costo_unitario,
-                "Comentarios": m.comentarios
-            }
-            for m in result
-        ]
-
-        return pd.DataFrame(data)
-        
-    except Exception as e:
-        return(f'❌ Ocurrio un error a la hora de Listar los Materiales utilizando una condicion. Archivo --> CRUD - Material - Funcion "listo_con_filtro". DETALLE: {e}')
-
-#Validar Material
-def validar_material(codigo_material: str) -> bool:
-    """
-    Función para validar la existencia de un Material
-    """
-    try:
-        session = Session(bind=engine)
-        result = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
-        return bool(result)
-        
-    except Exception as e:
-        return(f'❌ Ocurrio un error a la hora de buscar por Codigo un Material. Archivo --> CRUD - Material - Funcion "buscar_por_codigo". DETALLE: {e}') # type: ignore
-
-# Obtener material puntual
-def obtener_material(codigo_material: str):
-    """
-    Función para obtener los detalles de un Material por su código
-    """
-    try:
-        session = Session(bind=engine)
-        m = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
-
-        if not m:
-            return f'⚠️ No se encontró material con código {codigo_material.upper()}'
-
-        return {
-            "Código": m.codigo_material,
-            "Descripción": m.descripcion,
-            "Color": m.color,
-            "Categoría": m.categoria,
-            "Subcategoría": m.subcategoria,
-            "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
-            "Costo Unitario":m.costo_unitario,
-            "Comentarios": m.comentarios
-        }
-
-    except Exception as e:
-        return f'❌ Error al obtener material: {e}'
-
-# Listar dg filtrado 
-def listar_materiales_filtrados(categoria="Todas", subcategoria="Todas", color="Todos") -> pd.DataFrame:
-    try:
-        session = Session(bind=engine)
-        query = session.query(Material)
-
-        if categoria != "Todas":
-            query = query.filter(Material.categoria.ilike(categoria))
-
-        if subcategoria != "Todas":
-            query = query.filter(Material.subcategoria.ilike(subcategoria))
-
-        if color != "Todos":
-            query = query.filter(Material.color.ilike(color))
-
-        materiales = query.all()
-
-        df = pd.DataFrame([{
-            "Código": m.codigo_material,
-            "Descripción": m.descripcion,
-            "Color": m.color,
-            "Categoría": m.categoria,
-            "Subcategoría": m.subcategoria,
-            "Fecha Ingreso": datetime.date(m.fecha_ingreso), # type: ignore
-            "Comentarios": m.comentarios
-        } for m in materiales])
-
+        df = query_dataframe(
+            f"""
+            SELECT codigo_material AS `Código`, descripcion AS `Descripción`,
+                   color AS `Color`, categoria AS `Categoría`,
+                   subcategoria AS `Subcategoría`, fecha_ingreso AS `Fecha Ingreso`,
+                   costo_unitario AS `Costo Unitario`, comentarios AS `Comentarios`
+            FROM {T}
+            WHERE activo = TRUE
+            ORDER BY categoria, subcategoria, codigo_material
+            """
+        )
         return df
-    
-    except Exception as e:
-        print(f"Error al filtrar materiales: {e}")
-        return pd.DataFrame()
-    
+    except Exception as exc:
+        raise RuntimeError(f"No se pudieron consultar los materiales: {exc}") from exc
+
+
+def validar_material(codigo_material: str) -> bool:
+    codigo = _texto(codigo_material, upper=True)
+    rows = list(query(
+        f"SELECT 1 FROM {T} WHERE codigo_material=@codigo AND activo=TRUE LIMIT 1",
+        [bigquery.ScalarQueryParameter("codigo", "STRING", codigo)],
+    ))
+    return bool(rows)
+
+
+def obtener_material(codigo_material: str):
+    codigo = _texto(codigo_material, upper=True)
+    df = query_dataframe(
+        f"""
+        SELECT codigo_material AS `Código`, descripcion AS `Descripción`,
+               color AS `Color`, categoria AS `Categoría`,
+               subcategoria AS `Subcategoría`, fecha_ingreso AS `Fecha Ingreso`,
+               costo_unitario AS `Costo Unitario`, comentarios AS `Comentarios`
+        FROM {T} WHERE codigo_material=@codigo AND activo=TRUE LIMIT 1
+        """,
+        [bigquery.ScalarQueryParameter("codigo", "STRING", codigo)],
+    )
+    return df.iloc[0].to_dict() if not df.empty else f"⚠️ No se encontró material {codigo}"
+
+
 def actualizar_varios_campos(codigo_material: str, cambios: dict):
     try:
-        session = Session(bind=engine)
-        material = session.query(Material).filter(Material.codigo_material == codigo_material.upper()).first()
+        permitidos = {k: v for k, v in cambios.items() if k in COLUMNAS}
+        if not permitidos:
+            return "⚠️ No hay campos válidos para actualizar."
+        asignaciones, params = [], [
+            bigquery.ScalarQueryParameter("codigo", "STRING", _texto(codigo_material, upper=True))
+        ]
+        tipos = {
+            "fecha_ingreso": "DATE", "costo_unitario": "NUMERIC", "activo": "BOOL"
+        }
+        for indice, (campo, valor) in enumerate(permitidos.items()):
+            nombre = f"v{indice}"
+            asignaciones.append(f"{COLUMNAS[campo]}=@{nombre}")
+            if campo == "costo_unitario":
+                valor = Decimal(str(valor or 0))
+            params.append(bigquery.ScalarQueryParameter(nombre, tipos.get(campo, "STRING"), valor))
+        query(
+            f"UPDATE {T} SET {', '.join(asignaciones)}, fecha_actualizacion=CURRENT_TIMESTAMP() "
+            "WHERE codigo_material=@codigo",
+            params,
+        )
+        return f"✅ Material {_texto(codigo_material, upper=True)} actualizado correctamente."
+    except Exception as exc:
+        return f"❌ Error al actualizar material: {exc}"
 
-        if not material:
-            return f"❌ No se encontró material con código {codigo_material}"
 
-        for campo, valor in cambios.items():
-            if hasattr(material, campo):
-                setattr(material, campo, valor)
+def actualizar_material(codigo_material: str, columna: str, nuevo_valor):
+    return actualizar_varios_campos(codigo_material, {columna: nuevo_valor})
 
-        session.commit()
-        return f"✅ Material {codigo_material.upper()} actualizado correctamente."
 
-    except Exception as e:
-        return f"❌ Error al actualizar material: {e}"
+def eliminar_material(codigo_material: str):
+    """Baja lógica para preservar el historial de pedidos."""
+    return actualizar_varios_campos(codigo_material, {"activo": False})
+
+
+def listo_con_filtro(columna: str, valor):
+    df = listar_todos_materiales()
+    equivalencias = {
+        "categoria": "Categoría", "subcategoria": "Subcategoría",
+        "color": "Color", "codigo_material": "Código",
+    }
+    nombre = equivalencias.get(columna, columna)
+    return df[df[nombre] == valor] if nombre in df.columns else pd.DataFrame()
+
+
+def listar_materiales_filtrados(categoria="Todas", subcategoria="Todas", color="Todos"):
+    df = listar_todos_materiales()
+    if categoria != "Todas":
+        df = df[df["Categoría"] == categoria]
+    if subcategoria != "Todas":
+        df = df[df["Subcategoría"] == subcategoria]
+    if color != "Todos":
+        df = df[df["Color"] == color]
+    return df
+
+
+def cargar_materiales_bulk(df: pd.DataFrame) -> list[str]:
+    resultados = []
+    for _, fila in df.iterrows():
+        resultados.append(agregar_material(
+            codigo_material=fila["codigo material"],
+            descripcion=fila["descripcion"],
+            color=fila["color"],
+            categoria=fila["categoria"],
+            subcategoria=fila["subcategoria"],
+            fecha_ingreso=fila["fecha ingreso"],
+            comentarios=fila.get("comentarios", ""),
+            costo_unitario=fila.get("costo unitario", 0),
+        ))
+    return resultados
